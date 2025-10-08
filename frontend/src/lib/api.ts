@@ -45,6 +45,8 @@ export const kpisApi = {
   addHistory: (id: string, data: any) => api.post(`/kpis/${id}/history`, data),
   getHistory: (id: string) => api.get(`/kpis/${id}/history`),
   getStats: (id: string) => api.get(`/kpis/${id}/stats`),
+  getForecast: (id: string, periods?: number) => api.get(`/kpis/${id}/forecast`, { params: { periods } }),
+  getActions: (id: string) => api.get(`/kpis/${id}/actions`),
   importFromCSV: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

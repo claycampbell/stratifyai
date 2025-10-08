@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpisApi } from '@/lib/api';
 import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import KPIDetailModal from '@/components/KPIDetailModal';
 
 const statusColors = {
   on_track: 'bg-green-100 text-green-800',
@@ -20,6 +21,7 @@ export default function KPIs() {
   const [searchParams] = useSearchParams();
   const statusFilter = searchParams.get('status');
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedKpiId, setSelectedKpiId] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<{
     show: boolean;
     message: string;
@@ -290,7 +292,11 @@ export default function KPIs() {
             });
 
             return (
-              <div key={kpi.id} className="card">
+              <div
+                key={kpi.id}
+                className="card cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setSelectedKpiId(kpi.id)}
+              >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 mb-1">{kpi.name}</h3>
@@ -353,6 +359,11 @@ export default function KPIs() {
           </div>
         )}
       </div>
+
+      {/* KPI Detail Modal */}
+      {selectedKpiId && (
+        <KPIDetailModal kpiId={selectedKpiId} onClose={() => setSelectedKpiId(null)} />
+      )}
     </div>
   );
 }
