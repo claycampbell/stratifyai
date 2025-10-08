@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Format-Table -AutoSize)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
