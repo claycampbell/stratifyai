@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(Format-Table -AutoSize)"
+      "Bash(Format-Table -AutoSize)",
+      "Bash(curl:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

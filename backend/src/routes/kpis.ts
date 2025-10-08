@@ -336,4 +336,205 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
   }
 });
 
+// Get KPI forecast
+router.get('/:id/forecast', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { periods = 6 } = req.query;
+
+    const kpiResult = await pool.query('SELECT * FROM kpis WHERE id = $1', [id]);
+    if (kpiResult.rows.length === 0) {
+      return res.status(404).json({ error: 'KPI not found' });
+    }
+
+    const kpi = kpiResult.rows[0];
+
+    // Get historical data
+    const historyResult = await pool.query(
+      'SELECT value, recorded_date FROM kpi_history WHERE kpi_id = $1 ORDER BY recorded_date ASC',
+      [id]
+    );
+
+    const history = historyResult.rows;
+
+    if (history.length < 2) {
+      return res.json({
+        forecast: [],
+        trend: 'insufficient_data',
+        confidence: 'low',
+        message: 'Need at least 2 historical data points for forecasting',
+      });
+    }
+
+    // Simple linear regression for forecasting
+    const n = history.length;
+    const xValues = history.map((_: any, i: number) => i);
+    const yValues = history.map((h: any) => parseFloat(h.value));
+
+    const sumX = xValues.reduce((a: number, b: number) => a + b, 0);
+    const sumY = yValues.reduce((a: number, b: number) => a + b, 0);
+    const sumXY = xValues.reduce((acc: number, x: number, i: number) => acc + x * yValues[i], 0);
+    const sumX2 = xValues.reduce((acc: number, x: number) => acc + x * x, 0);
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+
+    // Generate forecast
+    const forecastPeriods = parseInt(periods as string) || 6;
+    const forecast = [];
+    const lastDate = new Date(history[history.length - 1].recorded_date);
+
+    for (let i = 1; i <= forecastPeriods; i++) {
+      const forecastDate = new Date(lastDate);
+
+      // Increment date based on KPI frequency
+      switch (kpi.frequency) {
+        case 'daily':
+          forecastDate.setDate(lastDate.getDate() + i);
+          break;
+        case 'weekly':
+          forecastDate.setDate(lastDate.getDate() + i * 7);
+          break;
+        case 'monthly':
+          forecastDate.setMonth(lastDate.getMonth() + i);
+          break;
+        case 'quarterly':
+          forecastDate.setMonth(lastDate.getMonth() + i * 3);
+          break;
+        case 'annual':
+          forecastDate.setFullYear(lastDate.getFullYear() + i);
+          break;
+      }
+
+      const predictedValue = slope * (n + i - 1) + intercept;
+      forecast.push({
+        date: forecastDate.toISOString().split('T')[0],
+        predicted_value: Math.round(predictedValue * 100) / 100,
+        confidence_interval: {
+          lower: Math.round((predictedValue * 0.9) * 100) / 100,
+          upper: Math.round((predictedValue * 1.1) * 100) / 100,
+        },
+      });
+    }
+
+    // Determine trend
+    let trend = 'stable';
+    if (slope > 0.1) trend = 'increasing';
+    if (slope < -0.1) trend = 'decreasing';
+
+    // Assess if on track to meet target
+    const targetGap = kpi.target_value
+      ? Math.abs(kpi.target_value - forecast[forecast.length - 1].predicted_value)
+      : null;
+
+    res.json({
+      forecast,
+      trend,
+      slope: Math.round(slope * 100) / 100,
+      confidence: history.length >= 5 ? 'medium' : 'low',
+      target_gap: targetGap,
+      on_track: kpi.target_value
+        ? Math.abs(forecast[forecast.length - 1].predicted_value - kpi.target_value) / kpi.target_value < 0.1
+        : null,
+    });
+  } catch (error) {
+    console.error('Error generating KPI forecast:', error);
+    res.status(500).json({ error: 'Failed to generate KPI forecast' });
+  }
+});
+
+// Get AI-powered next best actions for KPI
+router.get('/:id/actions', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const kpiResult = await pool.query('SELECT * FROM kpis WHERE id = $1', [id]);
+    if (kpiResult.rows.length === 0) {
+      return res.status(404).json({ error: 'KPI not found' });
+    }
+
+    const kpi = kpiResult.rows[0];
+
+    // Get historical data
+    const historyResult = await pool.query(
+      'SELECT value, recorded_date FROM kpi_history WHERE kpi_id = $1 ORDER BY recorded_date DESC LIMIT 10',
+      [id]
+    );
+
+    const history = historyResult.rows;
+
+    // Import GeminiService dynamically
+    const { GeminiService } = await import('../services/geminiService');
+    const geminiService = new GeminiService();
+
+    // Generate AI recommendations
+    const contextData = {
+      kpi_name: kpi.name,
+      description: kpi.description,
+      current_value: kpi.current_value,
+      target_value: kpi.target_value,
+      unit: kpi.unit,
+      status: kpi.status,
+      frequency: kpi.frequency,
+      recent_history: history.slice(0, 5),
+    };
+
+    const prompt = `
+      As an AI Chief Strategy Officer, analyze this KPI and provide actionable next best actions.
+
+      KPI Details:
+      - Name: ${kpi.name}
+      - Description: ${kpi.description || 'N/A'}
+      - Current Value: ${kpi.current_value} ${kpi.unit}
+      - Target Value: ${kpi.target_value} ${kpi.unit}
+      - Status: ${kpi.status}
+      - Frequency: ${kpi.frequency}
+      - Recent History: ${JSON.stringify(history.slice(0, 5))}
+
+      Please provide:
+      1. 3-5 specific, actionable next best actions to improve this KPI
+      2. Priority level for each action (high, medium, low)
+      3. Expected impact of each action
+      4. Estimated timeframe for each action
+
+      Return the response in JSON format:
+      {
+        "actions": [
+          {
+            "title": "Action title",
+            "description": "Detailed description",
+            "priority": "high|medium|low",
+            "expected_impact": "Description of expected impact",
+            "timeframe": "1-2 weeks",
+            "category": "process|people|technology|strategy"
+          }
+        ],
+        "insights": "Overall insights about the KPI performance",
+        "risk_factors": ["List of risk factors to watch"]
+      }
+
+      Return ONLY the JSON, no additional text.
+    `;
+
+    const result = await geminiService.chatWithContext(prompt, JSON.stringify(contextData));
+
+    // Try to extract JSON from the response
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const recommendations = JSON.parse(jsonMatch[0]);
+      res.json(recommendations);
+    } else {
+      // Fallback to plain text response
+      res.json({
+        actions: [],
+        insights: result,
+        risk_factors: [],
+      });
+    }
+  } catch (error) {
+    console.error('Error generating KPI actions:', error);
+    res.status(500).json({ error: 'Failed to generate KPI actions' });
+  }
+});
+
 export default router;
