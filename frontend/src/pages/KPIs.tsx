@@ -1,8 +1,9 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpisApi } from '@/lib/api';
-import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2, Filter, X } from 'lucide-react';
+import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2, Filter, X, Sparkles } from 'lucide-react';
 import KPIDetailModal from '@/components/KPIDetailModal';
+import KPITemplatesBrowser from '@/components/KPITemplatesBrowser';
 
 const statusColors = {
   on_track: 'bg-green-100 text-green-800',
@@ -20,6 +21,7 @@ export default function KPIs() {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedKpiId, setSelectedKpiId] = useState<string | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [personFilter, setPersonFilter] = useState<string>('all');
   const [importStatus, setImportStatus] = useState<{
@@ -245,6 +247,13 @@ export default function KPIs() {
               Delete All
             </button>
           )}
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="btn btn-secondary flex items-center"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Browse Templates
+          </button>
           <button
             onClick={handleImportClick}
             disabled={importMutation.isPending}
@@ -565,6 +574,9 @@ export default function KPIs() {
           </div>
         )}
       </div>
+
+      {/* KPI Templates Browser */}
+      {showTemplates && <KPITemplatesBrowser onClose={() => setShowTemplates(false)} />}
 
       {/* KPI Detail Modal */}
       {selectedKpiId && (

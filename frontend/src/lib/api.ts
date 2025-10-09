@@ -79,4 +79,35 @@ export const dashboardApi = {
   getAlignment: () => api.get('/dashboard/alignment'),
 };
 
+// KPI Enhancements API
+export const kpiEnhancementsApi = {
+  // Templates
+  getTemplates: (category?: string) => api.get('/kpi-enhancements/templates', { params: { category } }),
+  createFromTemplate: (templateId: string, data: any) =>
+    api.post(`/kpi-enhancements/templates/${templateId}/create`, data),
+  createTemplate: (data: any) => api.post('/kpi-enhancements/templates', data),
+
+  // Bulk Operations
+  bulkUpdate: (kpiIds: string[], updates: any, performedBy?: string) =>
+    api.post('/kpi-enhancements/bulk/update', { kpi_ids: kpiIds, updates, performed_by: performedBy }),
+  bulkDelete: (kpiIds: string[], performedBy?: string) =>
+    api.post('/kpi-enhancements/bulk/delete', { kpi_ids: kpiIds, performed_by: performedBy }),
+  getBulkHistory: (limit?: number) => api.get('/kpi-enhancements/bulk/history', { params: { limit } }),
+
+  // Recalculation
+  recalculateStatus: (id: string) => api.post(`/kpi-enhancements/${id}/recalculate`),
+
+  // Alerts
+  getAlerts: (params?: { kpi_id?: string; acknowledged?: boolean; severity?: string; limit?: number }) =>
+    api.get('/kpi-enhancements/alerts', { params }),
+  getKPIAlerts: (kpiId: string, limit?: number) =>
+    api.get(`/kpi-enhancements/${kpiId}/alerts`, { params: { limit } }),
+  acknowledgeAlert: (alertId: string, acknowledgedBy?: string) =>
+    api.post(`/kpi-enhancements/alerts/${alertId}/acknowledge`, { acknowledged_by: acknowledgedBy }),
+
+  // Validation
+  validateValue: (value: number, validationRules?: any) =>
+    api.post('/kpi-enhancements/validate', { value, validation_rules: validationRules }),
+};
+
 export default api;
