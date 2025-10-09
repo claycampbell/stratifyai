@@ -1,0 +1,69 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: ogsm-platform-rg
+  ACR_NAME: ogsmplatformacr
+  LOCATION: eastus
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Get ACR login server
+        id: acr
+        run: |
+          ACR_LOGIN_SERVER=$(az acr show --name ${{ env.ACR_NAME }} --query loginServer --output tsv)
+          echo "login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend image
+        run: |
+          docker build -t ${{ steps.acr.outputs.login_server }}/ogsm-backend:latest ./backend
+          docker push ${{ steps.acr.outputs.login_server }}/ogsm-backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker build -t ${{ steps.acr.outputs.login_server }}/ogsm-frontend:latest ./frontend
+          docker push ${{ steps.acr.outputs.login_server }}/ogsm-frontend:latest
+
+      - name: Get ACR credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username --output tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" --output tsv)
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "::add-mask::$ACR_PASSWORD"
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Restart backend container
+        run: |
+          az container restart --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-backend
+
+      - name: Restart frontend container
+        run: |
+          az container restart --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-frontend
+
+      - name: Check deployment status
+        run: |
+          echo "Backend status:"
+          az container show --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-backend --query instanceView.state
+          echo "Frontend status:"
+          az container show --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-frontend --query instanceView.state

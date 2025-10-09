@@ -74,6 +74,15 @@ app.use((req: Request, res: Response) => {
 async function initializeDatabase() {
   try {
     console.log('Initializing database...');
+    console.log(`Connecting to: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
+
+    // Test connection first with timeout
+    const testQuery = await Promise.race([
+      pool.query('SELECT 1'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 10000))
+    ]);
+    console.log('Database connection test successful');
+
     // In production (dist), __dirname points to /app/dist
     // SQL file is at /app/src/database/init.sql
     const sqlPath = process.env.NODE_ENV === 'production'
@@ -84,7 +93,15 @@ async function initializeDatabase() {
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Error initializing database:', error);
-    throw error;
+    console.error('Database connection details:', {
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      ssl: process.env.DB_HOST?.includes('azure') ? 'enabled' : 'disabled'
+    });
+    // Don't throw - let the app start anyway so we can see logs
+    console.warn('WARNING: Database initialization failed. App will start but database operations will fail.');
   }
 }
 

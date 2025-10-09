@@ -3,7 +3,11 @@
     "allow": [
       "Bash(Format-Table -AutoSize)",
       "Bash(curl:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npm run:*)",
+      "Bash(az:*)",
+      "Bash(docker:*)",
+      "Bash(timeout 15 az webapp log tail --name ogsm-frontend-webapp --resource-group ogsm-platform-rg)"
     ],
     "deny": [],
     "ask": []

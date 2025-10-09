@@ -9,6 +9,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'ogsm_manager',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
+  ssl: process.env.DB_HOST?.includes('postgres.database.azure.com') ? { rejectUnauthorized: false } : false,
 });
 
 pool.on('connect', () => {
