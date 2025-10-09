@@ -7,7 +7,13 @@
       "Bash(npm run:*)",
       "Bash(az:*)",
       "Bash(docker:*)",
-      "Bash(timeout 15 az webapp log tail --name ogsm-frontend-webapp --resource-group ogsm-platform-rg)"
+      "Bash(timeout 15 az webapp log tail --name ogsm-frontend-webapp --resource-group ogsm-platform-rg)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(timeout 60 az acr repository show-tags --name ogsmplatformacr --repository ogsm-frontend --orderby time_desc --output table)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
