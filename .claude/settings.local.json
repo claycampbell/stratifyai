@@ -14,6 +14,7 @@
       "Bash(git merge:*)",
       "Bash(timeout 60 az acr repository show-tags --name ogsmplatformacr --repository ogsm-frontend --orderby time_desc --output table)",
       "Bash(git add:*)",
+<<<<<<< HEAD
       "Bash(timeout 15 az webapp log tail --name ogsm-backend-webapp --resource-group ogsm-platform-rg)",
       "Bash(timeout 10 az webapp log tail:*)",
       "Bash(timeout 30 az webapp log tail --name ogsm-backend-webapp --resource-group ogsm-platform-rg)",
@@ -21,6 +22,12 @@
       "Bash(git pull:*)",
       "Bash(git stash push:*)",
       "Bash(git stash:*)"
+=======
+      "Bash(docker-compose restart:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose:*)"
+>>>>>>> e98cd9f9ea0e160643a0ad20241731724b19f90c
     ],
     "deny": [],
     "ask": []

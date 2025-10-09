@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
+import KPIService from '../services/kpiService';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -211,7 +212,15 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, target_value, current_value, unit, frequency, status } = req.body;
+    const { name, description, target_value, current_value, unit, frequency, status, owner_email, tags, validation_rules } = req.body;
+
+    // Validate value if validation rules are provided
+    if (current_value !== undefined && validation_rules) {
+      const validation = KPIService.validateKPIValue(current_value, validation_rules);
+      if (!validation.isValid) {
+        return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
+      }
+    }
 
     const result = await pool.query(
       `UPDATE kpis
@@ -222,17 +231,33 @@ router.put('/:id', async (req: Request, res: Response) => {
            unit = COALESCE($5, unit),
            frequency = COALESCE($6, frequency),
            status = COALESCE($7, status),
+           owner_email = COALESCE($8, owner_email),
+           tags = COALESCE($9, tags),
+           validation_rules = COALESCE($10, validation_rules),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8
+       WHERE id = $11
        RETURNING *`,
-      [name, description, target_value, current_value, unit, frequency, status, id]
+      [name, description, target_value, current_value, unit, frequency, status, owner_email, tags, validation_rules ? JSON.stringify(validation_rules) : null, id]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'KPI not found' });
     }
 
-    res.json(result.rows[0]);
+    // Auto-calculate status if current_value or target_value changed
+    if (current_value !== undefined || target_value !== undefined) {
+      try {
+        await KPIService.updateKPIWithCalculations(id);
+      } catch (calcError) {
+        console.error('Error auto-calculating KPI status:', calcError);
+        // Don't fail the update if calculation fails
+      }
+    }
+
+    // Get updated KPI
+    const updatedResult = await pool.query('SELECT * FROM kpis WHERE id = $1', [id]);
+
+    res.json(updatedResult.rows[0]);
   } catch (error) {
     console.error('Error updating KPI:', error);
     res.status(500).json({ error: 'Failed to update KPI' });
@@ -266,6 +291,15 @@ router.post('/:id/history', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'value and recorded_date are required' });
     }
 
+    // Get KPI to check validation rules
+    const kpiResult = await pool.query('SELECT validation_rules FROM kpis WHERE id = $1', [id]);
+    if (kpiResult.rows.length > 0 && kpiResult.rows[0].validation_rules) {
+      const validation = KPIService.validateKPIValue(value, kpiResult.rows[0].validation_rules);
+      if (!validation.isValid) {
+        return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO kpi_history (kpi_id, value, recorded_date, notes)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -277,6 +311,13 @@ router.post('/:id/history', async (req: Request, res: Response) => {
       `UPDATE kpis SET current_value = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
       [value, id]
     );
+
+    // Auto-calculate status and trend
+    try {
+      await KPIService.updateKPIWithCalculations(id);
+    } catch (calcError) {
+      console.error('Error auto-calculating KPI status:', calcError);
+    }
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

@@ -189,7 +189,8 @@ router.get('/alignment', async (req: Request, res: Response) => {
         k.name as kpi_name,
         k.status as kpi_status,
         k.current_value,
-        k.target_value
+        k.target_value,
+        k.unit
       FROM objectives o
       LEFT JOIN goals g ON g.parent_id = o.id
       LEFT JOIN strategies s ON s.parent_id = g.id

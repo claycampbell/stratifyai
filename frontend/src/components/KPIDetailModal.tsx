@@ -25,6 +25,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { format } from 'date-fns';
+import { formatKPIValue } from '@/lib/formatters';
 
 interface KPIDetailModalProps {
   kpiId: string;
@@ -259,7 +260,7 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                         </div>
                       ) : (
                         <p className="text-2xl font-bold text-gray-900 mt-1">
-                          {kpi.current_value || 'N/A'} {kpi.unit}
+                          {formatKPIValue(kpi.current_value, kpi.unit)}
                         </p>
                       )}
                     </div>
@@ -282,7 +283,7 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                         />
                       ) : (
                         <p className="text-2xl font-bold text-gray-900 mt-1">
-                          {kpi.target_value || 'N/A'} {kpi.unit}
+                          {formatKPIValue(kpi.target_value, kpi.unit)}
                         </p>
                       )}
                     </div>
@@ -484,7 +485,7 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                             {format(new Date(entry.recorded_date), 'MMM dd, yyyy')}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {entry.value} {kpi.unit}
+                            {formatKPIValue(entry.value, kpi.unit)}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-600">{entry.notes || '-'}</td>
                         </tr>

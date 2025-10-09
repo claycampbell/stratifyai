@@ -1,8 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpisApi } from '@/lib/api';
-import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2 } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2, Filter, X } from 'lucide-react';
 import KPIDetailModal from '@/components/KPIDetailModal';
 
 const statusColors = {
@@ -18,11 +17,11 @@ const statusIcons = {
 };
 
 export default function KPIs() {
-  const [searchParams] = useSearchParams();
-  const statusFilter = searchParams.get('status');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedKpiId, setSelectedKpiId] = useState<string | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [personFilter, setPersonFilter] = useState<string>('all');
   const [importStatus, setImportStatus] = useState<{
     show: boolean;
     message: string;
@@ -46,9 +45,51 @@ export default function KPIs() {
     queryFn: () => kpisApi.getAll().then((res) => res.data),
   });
 
-  const filteredKpis = statusFilter
-    ? kpis?.filter((kpi: any) => kpi.status === statusFilter)
-    : kpis;
+  // Extract unique leads/persons from KPI descriptions
+  const availablePersons = useMemo(() => {
+    if (!kpis) return [];
+    const persons = new Set<string>();
+    kpis.forEach((kpi: any) => {
+      const descParts = kpi.description ? kpi.description.split(' | ') : [];
+      descParts.forEach((part: string) => {
+        const [key, ...valueParts] = part.split(': ');
+        if (key === 'Lead' && valueParts.length > 0) {
+          const lead = valueParts.join(': ').trim();
+          if (lead) persons.add(lead);
+        }
+      });
+    });
+    return Array.from(persons).sort();
+  }, [kpis]);
+
+  // Apply filters
+  const filteredKpis = useMemo(() => {
+    if (!kpis) return [];
+
+    return kpis.filter((kpi: any) => {
+      // Status filter
+      if (statusFilter !== 'all' && kpi.status !== statusFilter) {
+        return false;
+      }
+
+      // Person/Lead filter
+      if (personFilter !== 'all') {
+        const descParts = kpi.description ? kpi.description.split(' | ') : [];
+        let kpiLead = '';
+        descParts.forEach((part: string) => {
+          const [key, ...valueParts] = part.split(': ');
+          if (key === 'Lead' && valueParts.length > 0) {
+            kpiLead = valueParts.join(': ').trim();
+          }
+        });
+        if (kpiLead !== personFilter) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [kpis, statusFilter, personFilter]);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => kpisApi.create(data),
@@ -226,6 +267,92 @@ export default function KPIs() {
             onChange={handleFileChange}
             className="hidden"
           />
+        </div>
+      </div>
+
+      {/* Filters Section */}
+      <div className="card">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-gray-500" />
+            <span className="font-medium text-gray-700">Filters:</span>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-600">Status:</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 py-1.5 px-3"
+            >
+              <option value="all">All Statuses</option>
+              <option value="on_track">On Track</option>
+              <option value="at_risk">At Risk</option>
+              <option value="off_track">Off Track</option>
+            </select>
+          </div>
+
+          {/* Person/Lead Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-600">Lead:</label>
+            <select
+              value={personFilter}
+              onChange={(e) => setPersonFilter(e.target.value)}
+              className="text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 py-1.5 px-3"
+            >
+              <option value="all">All Leads</option>
+              {availablePersons.map((person) => (
+                <option key={person} value={person}>
+                  {person}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Active Filters Display & Clear */}
+          {(statusFilter !== 'all' || personFilter !== 'all') && (
+            <>
+              <div className="flex items-center gap-2">
+                {statusFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                    Status: {statusFilter.replace('_', ' ')}
+                    <button
+                      onClick={() => setStatusFilter('all')}
+                      className="ml-1 hover:text-blue-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+                {personFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                    Lead: {personFilter}
+                    <button
+                      onClick={() => setPersonFilter('all')}
+                      className="ml-1 hover:text-green-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setStatusFilter('all');
+                  setPersonFilter('all');
+                }}
+                className="text-sm text-gray-600 hover:text-gray-900 underline"
+              >
+                Clear all
+              </button>
+            </>
+          )}
+
+          {/* Results Count */}
+          <div className={`text-sm text-gray-600 ${statusFilter === 'all' && personFilter === 'all' ? 'ml-auto' : ''}`}>
+            Showing {filteredKpis?.length || 0} of {kpis?.length || 0} KPIs
+          </div>
         </div>
       </div>
 
