@@ -72,4 +72,11 @@ export const aiApi = {
   getRecommendations: () => api.post('/ai/recommendations'),
 };
 
+// Dashboard API
+export const dashboardApi = {
+  getAnalytics: () => api.get('/dashboard/analytics'),
+  getRoadmap: () => api.get('/dashboard/roadmap'),
+  getAlignment: () => api.get('/dashboard/alignment'),
+};
+
 export default api;
