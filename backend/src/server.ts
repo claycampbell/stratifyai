@@ -10,6 +10,7 @@ import documentsRouter from './routes/documents';
 import ogsmRouter from './routes/ogsm';
 import kpisRouter from './routes/kpis';
 import aiRouter from './routes/ai';
+import dashboardRouter from './routes/dashboard';
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use('/api/documents', documentsRouter);
 app.use('/api/ogsm', ogsmRouter);
 app.use('/api/kpis', kpisRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -53,6 +55,7 @@ app.get('/', (req: Request, res: Response) => {
       ogsm: '/api/ogsm',
       kpis: '/api/kpis',
       ai: '/api/ai',
+      dashboard: '/api/dashboard',
     },
   });
 });

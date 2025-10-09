@@ -1,9 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { ogsmApi, kpisApi } from '@/lib/api';
-import { TrendingUp, Target, AlertCircle, CheckCircle } from 'lucide-react';
+import { ogsmApi, kpisApi, dashboardApi } from '@/lib/api';
+import { TrendingUp, Target, AlertCircle, CheckCircle, BarChart3, Calendar, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import StrategicOverview from '@/components/StrategicOverview';
+import KPITrendsChart from '@/components/KPITrendsChart';
+import StrategicRoadmap from '@/components/StrategicRoadmap';
+import AlignmentMatrix from '@/components/AlignmentMatrix';
 
 export default function Dashboard() {
+  const [activeView, setActiveView] = useState<'overview' | 'trends' | 'roadmap' | 'alignment'>('overview');
+
   const { data: ogsmComponents } = useQuery({
     queryKey: ['ogsm'],
     queryFn: () => ogsmApi.getAll().then((res) => res.data),
@@ -12,6 +19,23 @@ export default function Dashboard() {
   const { data: kpis } = useQuery({
     queryKey: ['kpis'],
     queryFn: () => kpisApi.getAll().then((res) => res.data),
+  });
+
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+    queryKey: ['dashboard-analytics'],
+    queryFn: () => dashboardApi.getAnalytics().then((res) => res.data),
+  });
+
+  const { data: roadmap, isLoading: roadmapLoading } = useQuery({
+    queryKey: ['dashboard-roadmap'],
+    queryFn: () => dashboardApi.getRoadmap().then((res) => res.data),
+    enabled: activeView === 'roadmap',
+  });
+
+  const { data: alignment, isLoading: alignmentLoading } = useQuery({
+    queryKey: ['dashboard-alignment'],
+    queryFn: () => dashboardApi.getAlignment().then((res) => res.data),
+    enabled: activeView === 'alignment',
   });
 
   const stats = [
@@ -58,9 +82,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Strategic Dashboard</h1>
         <p className="mt-2 text-gray-600">
-          Welcome to your AI-powered OGSM Management Platform
+          Real-time view of your organizational strategy and performance
         </p>
       </div>
 
@@ -112,28 +136,90 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* View Tabs */}
+      <div className="card">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8">
+            {[
+              { key: 'overview', label: 'Strategic Overview', icon: Activity },
+              { key: 'trends', label: 'KPI Trends', icon: TrendingUp },
+              { key: 'roadmap', label: 'Roadmap', icon: Calendar },
+              { key: 'alignment', label: 'Alignment Matrix', icon: BarChart3 },
+            ].map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setActiveView(key as any)}
+                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeView === key
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Icon className="h-4 w-4 mr-2" />
+                {label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="pt-6">
+          {activeView === 'overview' && (
+            analyticsLoading ? (
+              <div className="text-center py-12 text-gray-600">Loading strategic overview...</div>
+            ) : (
+              <StrategicOverview analytics={analytics} />
+            )
+          )}
+
+          {activeView === 'trends' && (
+            analyticsLoading ? (
+              <div className="text-center py-12 text-gray-600">Loading KPI trends...</div>
+            ) : (
+              <KPITrendsChart analytics={analytics} />
+            )
+          )}
+
+          {activeView === 'roadmap' && (
+            roadmapLoading ? (
+              <div className="text-center py-12 text-gray-600">Loading roadmap...</div>
+            ) : (
+              <StrategicRoadmap roadmap={roadmap} />
+            )
+          )}
+
+          {activeView === 'alignment' && (
+            alignmentLoading ? (
+              <div className="text-center py-12 text-gray-600">Loading alignment matrix...</div>
+            ) : (
+              <AlignmentMatrix alignment={alignment} />
+            )
+          )}
+        </div>
+      </div>
+
       {/* Quick Actions */}
       <div className="card">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <a
-            href="/documents"
+          <Link
+            to="/documents"
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <h3 className="font-semibold text-gray-900">Upload Documents</h3>
             <p className="text-sm text-gray-600 mt-1">
               Upload strategic plans and track progress
             </p>
-          </a>
-          <a
-            href="/ai-chat"
+          </Link>
+          <Link
+            to="/ai-chat"
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <h3 className="font-semibold text-gray-900">AI Strategy Chat</h3>
             <p className="text-sm text-gray-600 mt-1">
               Get strategic insights from your AI advisor
             </p>
-          </a>
+          </Link>
         </div>
       </div>
     </div>
