@@ -13,7 +13,14 @@
       "Bash(git fetch:*)",
       "Bash(git merge:*)",
       "Bash(timeout 60 az acr repository show-tags --name ogsmplatformacr --repository ogsm-frontend --orderby time_desc --output table)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(timeout 15 az webapp log tail --name ogsm-backend-webapp --resource-group ogsm-platform-rg)",
+      "Bash(timeout 10 az webapp log tail:*)",
+      "Bash(timeout 30 az webapp log tail --name ogsm-backend-webapp --resource-group ogsm-platform-rg)",
+      "Bash(timeout 300 az webapp log tail --name ogsm-backend-webapp --resource-group ogsm-platform-rg)",
+      "Bash(git pull:*)",
+      "Bash(git stash push:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []
