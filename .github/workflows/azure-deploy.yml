@@ -34,36 +34,32 @@ jobs:
           ACR_LOGIN_SERVER=$(az acr show --name ${{ env.ACR_NAME }} --query loginServer --output tsv)
           echo "login_server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
 
-      - name: Build and push backend image
+      - name: Build and push backend image using ACR
         run: |
-          docker build -t ${{ steps.acr.outputs.login_server }}/ogsm-backend:latest ./backend
-          docker push ${{ steps.acr.outputs.login_server }}/ogsm-backend:latest
+          az acr build --registry ${{ env.ACR_NAME }} --image ogsm-backend:latest ./backend
 
-      - name: Build and push frontend image
+      - name: Build and push frontend image using ACR
         run: |
-          docker build -t ${{ steps.acr.outputs.login_server }}/ogsm-frontend:latest ./frontend
-          docker push ${{ steps.acr.outputs.login_server }}/ogsm-frontend:latest
+          az acr build --registry ${{ env.ACR_NAME }} --image ogsm-frontend:latest ./frontend
 
-      - name: Get ACR credentials
-        id: acr-creds
+      - name: Restart backend web app
         run: |
-          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username --output tsv)
-          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" --output tsv)
-          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
-          echo "::add-mask::$ACR_PASSWORD"
-          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+          az webapp restart --name ogsm-backend-webapp --resource-group ${{ env.RESOURCE_GROUP }}
 
-      - name: Restart backend container
+      - name: Restart frontend web app
         run: |
-          az container restart --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-backend
-
-      - name: Restart frontend container
-        run: |
-          az container restart --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-frontend
+          az webapp restart --name ogsm-frontend-webapp --resource-group ${{ env.RESOURCE_GROUP }}
 
       - name: Check deployment status
         run: |
           echo "Backend status:"
-          az container show --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-backend --query instanceView.state
+          az webapp show --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-backend-webapp --query state
           echo "Frontend status:"
-          az container show --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-frontend --query instanceView.state
+          az webapp show --resource-group ${{ env.RESOURCE_GROUP }} --name ogsm-frontend-webapp --query state
+
+      - name: Verify backend health
+        run: |
+          echo "Waiting 30 seconds for apps to restart..."
+          sleep 30
+          echo "Checking backend health..."
+          curl -f https://ogsm-backend-webapp.azurewebsites.net/health || echo "Backend health check failed"
