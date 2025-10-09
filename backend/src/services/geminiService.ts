@@ -1,5 +1,6 @@
 import { getGeminiModel } from '../config/gemini';
 import { AIAnalysisRequest, AIAnalysisResponse, OGSMComponent, KPI } from '../types';
+import { SchemaType, Tool } from '@google/generative-ai';
 
 export class GeminiService {
   private model;
@@ -111,8 +112,8 @@ export class GeminiService {
     message: string,
     chatContext: string,
     systemContext: { kpis: any[]; ogsm: any[] }
-  ): Promise<string> {
-    const prompt = `
+  ): Promise<{ response: string; actions?: any[] }> {
+    const systemPrompt = `
 You are an AI Chief Strategy Officer for a strategic planning platform. You help users with their OGSM (Objectives, Goals, Strategies, Measures) framework and KPI management.
 
 CURRENT SYSTEM STATE:
@@ -122,31 +123,142 @@ CURRENT SYSTEM STATE:
 CONVERSATION HISTORY:
 ${chatContext}
 
-USER MESSAGE: ${message}
+You can perform the following actions:
+1. Create KPIs
+2. Update KPIs
+3. Create OGSM components (objectives, goals, strategies, measures)
+4. Update OGSM components
+5. Delete KPIs or OGSM components
 
-CAPABILITIES:
-You can help users with:
-1. Strategic planning advice and insights
-2. Guiding them to add/update KPIs (walk them through the details needed)
-3. Helping create OGSM components (objectives, goals, strategies)
-4. Analyzing strategic alignment
-5. Generating reports
-6. Answering questions about their current strategy
-
-IMPORTANT INSTRUCTIONS:
-- If the user wants to add a KPI, ask for: name, description, target value, current value, unit, and frequency
-- If the user wants to add OGSM components, ask for: title and description
-- Be conversational and helpful
-- If information is missing, ask follow-up questions naturally
-- When you have enough information to perform an action, provide clear guidance
-- Acknowledge the current state when relevant
-
-Respond naturally as an AI strategy advisor:
+When a user asks you to perform an action, use the available tools to execute it.
+Be conversational and confirm actions with the user before executing them.
     `;
 
+    // Define function declarations for Gemini
+    const tools = [
+      {
+        functionDeclarations: [
+          {
+            name: 'create_kpi',
+            description: 'Creates a new KPI in the system',
+            parameters: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING, description: 'Name of the KPI' },
+                description: { type: SchemaType.STRING, description: 'Description of what this KPI measures' },
+                target_value: { type: SchemaType.NUMBER, description: 'Target value to achieve' },
+                current_value: { type: SchemaType.NUMBER, description: 'Current value of the KPI' },
+                unit: { type: SchemaType.STRING, description: 'Unit of measurement (e.g., %, dollars, count)' },
+                frequency: {
+                  type: SchemaType.STRING,
+                  description: 'How often this KPI is measured',
+                  enum: ['daily', 'weekly', 'monthly', 'quarterly', 'annual'],
+                },
+              },
+              required: ['name', 'description', 'target_value', 'current_value', 'unit', 'frequency'],
+            },
+          },
+          {
+            name: 'update_kpi',
+            description: 'Updates an existing KPI',
+            parameters: {
+              type: SchemaType.OBJECT,
+              properties: {
+                kpi_id: { type: SchemaType.STRING, description: 'ID of the KPI to update' },
+                current_value: { type: SchemaType.NUMBER, description: 'New current value' },
+                target_value: { type: SchemaType.NUMBER, description: 'New target value (optional)' },
+              },
+              required: ['kpi_id', 'current_value'],
+            },
+          },
+          {
+            name: 'create_ogsm_component',
+            description: 'Creates a new OGSM component (objective, goal, strategy, or measure)',
+            parameters: {
+              type: SchemaType.OBJECT,
+              properties: {
+                component_type: {
+                  type: SchemaType.STRING,
+                  description: 'Type of OGSM component',
+                  enum: ['objective', 'goal', 'strategy', 'measure'],
+                },
+                title: { type: SchemaType.STRING, description: 'Title of the component' },
+                description: { type: SchemaType.STRING, description: 'Detailed description' },
+                parent_id: {
+                  type: SchemaType.STRING,
+                  description: 'ID of parent component (optional, for hierarchy)',
+                },
+              },
+              required: ['component_type', 'title', 'description'],
+            },
+          },
+          {
+            name: 'update_ogsm_component',
+            description: 'Updates an existing OGSM component',
+            parameters: {
+              type: SchemaType.OBJECT,
+              properties: {
+                component_id: { type: SchemaType.STRING, description: 'ID of the component to update' },
+                title: { type: SchemaType.STRING, description: 'New title (optional)' },
+                description: { type: SchemaType.STRING, description: 'New description (optional)' },
+              },
+              required: ['component_id'],
+            },
+          },
+          {
+            name: 'delete_kpi',
+            description: 'Deletes a KPI from the system',
+            parameters: {
+              type: SchemaType.OBJECT,
+              properties: {
+                kpi_id: { type: SchemaType.STRING, description: 'ID of the KPI to delete' },
+              },
+              required: ['kpi_id'],
+            },
+          },
+          {
+            name: 'delete_ogsm_component',
+            description: 'Deletes an OGSM component',
+            parameters: {
+              type: SchemaType.OBJECT,
+              properties: {
+                component_id: { type: SchemaType.STRING, description: 'ID of the component to delete' },
+              },
+              required: ['component_id'],
+            },
+          },
+        ],
+      },
+    ];
+
     try {
-      const result = await this.model.generateContent(prompt);
-      return result.response.text();
+      const chat = this.model.startChat({
+        tools: tools as Tool[],
+        history: [],
+      });
+
+      const result = await chat.sendMessage(`${systemPrompt}\n\nUSER MESSAGE: ${message}`);
+      const response = result.response;
+
+      // Check if there are function calls
+      const functionCalls = response.functionCalls();
+
+      console.log('Gemini response candidates:', JSON.stringify(response.candidates, null, 2));
+      console.log('Function calls detected:', functionCalls ? functionCalls.length : 0);
+
+      if (functionCalls && functionCalls.length > 0) {
+        console.log('Function calls:', JSON.stringify(functionCalls, null, 2));
+        // Return both the response text and the function calls
+        return {
+          response: response.text() || 'I will perform the requested actions.',
+          actions: functionCalls,
+        };
+      }
+
+      return {
+        response: response.text(),
+        actions: [],
+      };
     } catch (error) {
       console.error('Error in action-aware chat:', error);
       throw new Error('Failed to generate chat response');

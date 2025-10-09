@@ -1,19 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { aiApi } from '@/lib/api';
-import { Send, Bot, User, X, MessageSquare, Minimize2, CheckCircle, Zap } from 'lucide-react';
-import { parseUserIntent, executeAction, type AIAction } from '@/services/aiActions';
+import { Send, Bot, User, X, MessageSquare, Minimize2 } from 'lucide-react';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   message: string;
   created_at?: string;
-  action?: {
-    type: string;
-    status: 'pending' | 'completed' | 'failed';
-    data?: any;
-  };
 }
 
 export default function AIChatBubble() {
@@ -21,7 +15,6 @@ export default function AIChatBubble() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
   const [message, setMessage] = useState('');
-  const [pendingAction, setPendingAction] = useState<AIAction | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -34,75 +27,32 @@ export default function AIChatBubble() {
 
   const chatMutation = useMutation({
     mutationFn: (msg: string) => aiApi.chat(msg, sessionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat', sessionId] });
-      setMessage('');
-    },
-  });
+    onSuccess: (response) => {
+      try {
+        queryClient.invalidateQueries({ queryKey: ['chat', sessionId] });
 
-  const actionMutation = useMutation({
-    mutationFn: executeAction,
-    onSuccess: (result) => {
-      if (result.success) {
-        // Invalidate relevant queries to refresh data
-        queryClient.invalidateQueries({ queryKey: ['kpis'] });
-        queryClient.invalidateQueries({ queryKey: ['ogsm'] });
+        // If actions were executed by the backend, refresh relevant data
+        if (response?.data?.actions && Array.isArray(response.data.actions) && response.data.actions.length > 0) {
+          queryClient.invalidateQueries({ queryKey: ['kpis'] });
+          queryClient.invalidateQueries({ queryKey: ['ogsm'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        }
+
+        setMessage('');
+      } catch (error) {
+        console.error('Error in chat mutation onSuccess:', error);
       }
+    },
+    onError: (error) => {
+      console.error('Chat mutation error:', error);
     },
   });
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !chatMutation.isPending) {
-      // Parse for action intent
-      const action = parseUserIntent(message);
-
-      if (action.type !== 'none' && action.requiresConfirmation) {
-        // Check if we have enough parameters to execute
-        const hasRequiredParams = validateActionParameters(action);
-
-        if (hasRequiredParams) {
-          setPendingAction(action);
-        }
-      }
-
-      // Always send the message to AI for response
+      // Send message to AI - the backend will handle action detection and execution
       chatMutation.mutate(message);
-    }
-  };
-
-  const handleExecuteAction = async () => {
-    if (pendingAction) {
-      const result = await actionMutation.mutateAsync(pendingAction);
-
-      // Send confirmation message to chat
-      const confirmMessage = result.success
-        ? `✓ Action completed: ${result.message}`
-        : `✗ Action failed: ${result.message}`;
-
-      await aiApi.chat(confirmMessage, sessionId);
-      queryClient.invalidateQueries({ queryKey: ['chat', sessionId] });
-
-      setPendingAction(null);
-    }
-  };
-
-  const handleCancelAction = () => {
-    setPendingAction(null);
-  };
-
-  const validateActionParameters = (action: AIAction): boolean => {
-    if (!action.parameters) return false;
-
-    switch (action.type) {
-      case 'add_kpi':
-        return !!action.parameters.name;
-      case 'add_objective':
-      case 'add_goal':
-      case 'add_strategy':
-        return !!action.parameters.title;
-      default:
-        return true;
     }
   };
 
@@ -178,7 +128,7 @@ export default function AIChatBubble() {
               </div>
             )}
 
-            {chatHistory?.map((msg: Message) => (
+            {Array.isArray(chatHistory) && chatHistory.map((msg: Message) => (
               <div
                 key={msg.id}
                 className={`flex items-start space-x-2 ${
@@ -206,13 +156,6 @@ export default function AIChatBubble() {
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.message}</p>
-                  {msg.action && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-xs text-gray-500">
-                        Action: {msg.action.type} - {msg.action.status}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
@@ -234,37 +177,6 @@ export default function AIChatBubble() {
 
             <div ref={messagesEndRef} />
           </div>
-
-          {/* Pending Action Confirmation */}
-          {pendingAction && (
-            <div className="px-4 py-3 bg-amber-50 border-t border-amber-200">
-              <div className="flex items-start space-x-2">
-                <Zap className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-amber-900">Action Ready</p>
-                  <p className="text-xs text-amber-700 mt-1">
-                    Execute: {pendingAction.type.replace('_', ' ')}
-                  </p>
-                </div>
-                <div className="flex space-x-1 flex-shrink-0">
-                  <button
-                    onClick={handleExecuteAction}
-                    disabled={actionMutation.isPending}
-                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
-                  >
-                    <CheckCircle className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={handleCancelAction}
-                    disabled={actionMutation.isPending}
-                    className="text-xs bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Input Form */}
           <div className="p-4 bg-white border-t border-gray-200 rounded-b-lg">

@@ -16,9 +16,24 @@ export default function AIChat() {
 
   const chatMutation = useMutation({
     mutationFn: (msg: string) => aiApi.chat(msg, sessionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat', sessionId] });
-      setMessage('');
+    onSuccess: (response) => {
+      try {
+        queryClient.invalidateQueries({ queryKey: ['chat', sessionId] });
+
+        // If actions were executed, refresh relevant data
+        if (response?.data?.actions && Array.isArray(response.data.actions) && response.data.actions.length > 0) {
+          queryClient.invalidateQueries({ queryKey: ['kpis'] });
+          queryClient.invalidateQueries({ queryKey: ['ogsm'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        }
+
+        setMessage('');
+      } catch (error) {
+        console.error('Error in chat mutation onSuccess:', error);
+      }
+    },
+    onError: (error) => {
+      console.error('Chat mutation error:', error);
     },
   });
 
@@ -54,7 +69,7 @@ export default function AIChat() {
             </div>
           )}
 
-          {chatHistory?.map((msg: any) => (
+          {Array.isArray(chatHistory) && chatHistory.map((msg: any) => (
             <div
               key={msg.id}
               className={`flex items-start space-x-3 ${
