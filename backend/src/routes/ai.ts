@@ -38,23 +38,70 @@ router.post('/chat', async (req: Request, res: Response) => {
     const systemContext = await gatherSystemContext();
 
     // Generate AI response with action awareness
-    const aiResponse = await geminiService.chatWithActionSupport(
+    const aiResult = await geminiService.chatWithActionSupport(
       message,
       chatContext,
       systemContext
     );
 
+    // Execute any actions requested by the AI
+    const executedActions = [];
+    if (aiResult.actions && aiResult.actions.length > 0) {
+      for (const action of aiResult.actions) {
+        try {
+          const result = await executeAction(action);
+          executedActions.push({
+            action: action.name,
+            params: action.args,
+            result,
+            success: true,
+          });
+        } catch (error: any) {
+          executedActions.push({
+            action: action.name,
+            params: action.args,
+            error: error.message,
+            success: false,
+          });
+        }
+      }
+    }
+
+    // Build response message
+    let responseMessage = aiResult.response;
+    if (executedActions.length > 0) {
+      const successfulActions = executedActions.filter((a) => a.success);
+      if (successfulActions.length > 0) {
+        responseMessage += '\n\n✅ Actions completed successfully:\n';
+        successfulActions.forEach((a) => {
+          responseMessage += `- ${a.action}\n`;
+        });
+      }
+
+      const failedActions = executedActions.filter((a) => !a.success);
+      if (failedActions.length > 0) {
+        responseMessage += '\n\n❌ Some actions failed:\n';
+        failedActions.forEach((a) => {
+          responseMessage += `- ${a.action}: ${a.error}\n`;
+        });
+      }
+    }
+
     // Save AI response
     await pool.query(
       `INSERT INTO chat_history (session_id, role, message)
        VALUES ($1, $2, $3)`,
-      [sessionId, 'assistant', aiResponse]
+      [sessionId, 'assistant', responseMessage]
     );
 
-    res.json({
+    const responseData = {
       session_id: sessionId,
-      message: aiResponse,
-    });
+      message: responseMessage,
+      actions: executedActions,
+    };
+
+    console.log('AI Chat Response:', JSON.stringify(responseData, null, 2));
+    res.json(responseData);
   } catch (error) {
     console.error('Error in chat:', error);
     res.status(500).json({ error: 'Failed to process chat message' });
@@ -76,6 +123,141 @@ async function gatherSystemContext() {
   } catch (error) {
     console.error('Error gathering system context:', error);
     return { kpis: [], ogsm: [] };
+  }
+}
+
+// Helper function to execute AI-requested actions
+async function executeAction(action: any) {
+  const { name, args } = action;
+
+  switch (name) {
+    case 'create_kpi': {
+      const { name: kpiName, description, target_value, current_value, unit, frequency } = args;
+      const result = await pool.query(
+        `INSERT INTO kpis (name, description, target_value, current_value, unit, frequency, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [
+          kpiName,
+          description,
+          target_value,
+          current_value,
+          unit,
+          frequency,
+          current_value >= target_value ? 'on-track' : 'at-risk',
+        ]
+      );
+      return { id: result.rows[0].id, name: kpiName };
+    }
+
+    case 'update_kpi': {
+      const { kpi_id, current_value, target_value } = args;
+      const updateFields: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      updateFields.push(`current_value = $${paramCount++}`);
+      values.push(current_value);
+
+      if (target_value !== undefined) {
+        updateFields.push(`target_value = $${paramCount++}`);
+        values.push(target_value);
+      }
+
+      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+      values.push(kpi_id);
+
+      const result = await pool.query(
+        `UPDATE kpis SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+        values
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('KPI not found');
+      }
+
+      return { id: kpi_id, updated: true };
+    }
+
+    case 'create_ogsm_component': {
+      const { component_type, title, description, parent_id } = args;
+
+      // Get the max order index for this type
+      const maxOrderResult = await pool.query(
+        'SELECT COALESCE(MAX(order_index), 0) as max_order FROM ogsm_components WHERE component_type = $1',
+        [component_type]
+      );
+      const orderIndex = maxOrderResult.rows[0].max_order + 1;
+
+      const result = await pool.query(
+        `INSERT INTO ogsm_components (component_type, title, description, order_index, parent_id)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [component_type, title, description, orderIndex, parent_id || null]
+      );
+
+      return { id: result.rows[0].id, title, component_type };
+    }
+
+    case 'update_ogsm_component': {
+      const { component_id, title, description } = args;
+      const updateFields: string[] = [];
+      const values: any[] = [];
+      let paramCount = 1;
+
+      if (title) {
+        updateFields.push(`title = $${paramCount++}`);
+        values.push(title);
+      }
+
+      if (description) {
+        updateFields.push(`description = $${paramCount++}`);
+        values.push(description);
+      }
+
+      if (updateFields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+      values.push(component_id);
+
+      const result = await pool.query(
+        `UPDATE ogsm_components SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+        values
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('OGSM component not found');
+      }
+
+      return { id: component_id, updated: true };
+    }
+
+    case 'delete_kpi': {
+      const { kpi_id } = args;
+      const result = await pool.query('DELETE FROM kpis WHERE id = $1 RETURNING *', [kpi_id]);
+
+      if (result.rows.length === 0) {
+        throw new Error('KPI not found');
+      }
+
+      return { id: kpi_id, deleted: true };
+    }
+
+    case 'delete_ogsm_component': {
+      const { component_id } = args;
+      const result = await pool.query('DELETE FROM ogsm_components WHERE id = $1 RETURNING *', [
+        component_id,
+      ]);
+
+      if (result.rows.length === 0) {
+        throw new Error('OGSM component not found');
+      }
+
+      return { id: component_id, deleted: true };
+    }
+
+    default:
+      throw new Error(`Unknown action: ${name}`);
   }
 }
 

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpisApi } from '@/lib/api';
-import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload } from 'lucide-react';
+import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import KPIDetailModal from '@/components/KPIDetailModal';
 
@@ -22,6 +22,7 @@ export default function KPIs() {
   const statusFilter = searchParams.get('status');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedKpiId, setSelectedKpiId] = useState<string | null>(null);
+  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [importStatus, setImportStatus] = useState<{
     show: boolean;
     message: string;
@@ -90,6 +91,50 @@ export default function KPIs() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => kpisApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpis'] });
+      setImportStatus({
+        show: true,
+        message: 'KPI deleted successfully',
+        type: 'success',
+      });
+    },
+    onError: (error: any) => {
+      setImportStatus({
+        show: true,
+        message: error.response?.data?.error || 'Failed to delete KPI',
+        type: 'error',
+      });
+    },
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      // Delete all KPIs one by one
+      if (kpis) {
+        await Promise.all(kpis.map((kpi: any) => kpisApi.delete(kpi.id)));
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kpis'] });
+      setShowDeleteAllConfirm(false);
+      setImportStatus({
+        show: true,
+        message: 'All KPIs deleted successfully',
+        type: 'success',
+      });
+    },
+    onError: () => {
+      setImportStatus({
+        show: true,
+        message: 'Failed to delete all KPIs',
+        type: 'error',
+      });
+    },
+  });
+
   const handleCreate = () => {
     if (newKPI.name) {
       const data = {
@@ -126,6 +171,21 @@ export default function KPIs() {
     fileInputRef.current?.click();
   };
 
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Prevent opening the detail modal
+    if (confirm('Are you sure you want to delete this KPI?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteAll = () => {
+    setShowDeleteAllConfirm(true);
+  };
+
+  const confirmDeleteAll = () => {
+    deleteAllMutation.mutate();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -134,6 +194,16 @@ export default function KPIs() {
           <p className="mt-2 text-gray-600">Track and manage your KPIs</p>
         </div>
         <div className="flex gap-3">
+          {kpis && kpis.length > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              disabled={deleteAllMutation.isPending}
+              className="btn bg-red-600 hover:bg-red-700 text-white flex items-center"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete All
+            </button>
+          )}
           <button
             onClick={handleImportClick}
             disabled={importMutation.isPending}
@@ -279,7 +349,7 @@ export default function KPIs() {
           <p className="text-gray-600">Loading KPIs...</p>
         ) : filteredKpis && filteredKpis.length > 0 ? (
           filteredKpis.map((kpi: any) => {
-            const StatusIcon = statusIcons[kpi.status as keyof typeof statusIcons];
+            const StatusIcon = statusIcons[kpi.status as keyof typeof statusIcons] || AlertCircle;
 
             // Parse description to extract fields
             const descParts = kpi.description ? kpi.description.split(' | ') : [];
@@ -302,14 +372,23 @@ export default function KPIs() {
                     <h3 className="font-semibold text-gray-900 mb-1">{kpi.name}</h3>
                     <span
                       className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                        statusColors[kpi.status as keyof typeof statusColors]
+                        statusColors[kpi.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      <StatusIcon className="h-3 w-3 mr-1" />
+                      {StatusIcon && <StatusIcon className="h-3 w-3 mr-1" />}
                       {kpi.status.replace('_', ' ')}
                     </span>
                   </div>
-                  <TrendingUp className="h-5 w-5 text-gray-400" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => handleDelete(e, kpi.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete KPI"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <TrendingUp className="h-5 w-5 text-gray-400" />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -363,6 +442,35 @@ export default function KPIs() {
       {/* KPI Detail Modal */}
       {selectedKpiId && (
         <KPIDetailModal kpiId={selectedKpiId} onClose={() => setSelectedKpiId(null)} />
+      )}
+
+      {/* Delete All Confirmation Modal */}
+      {showDeleteAllConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete All KPIs?</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete all KPIs? This action cannot be undone and will
+              permanently remove all {kpis?.length || 0} KPI(s) from the system.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteAllConfirm(false)}
+                className="btn btn-secondary"
+                disabled={deleteAllMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteAll}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+                disabled={deleteAllMutation.isPending}
+              >
+                {deleteAllMutation.isPending ? 'Deleting...' : 'Delete All'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
