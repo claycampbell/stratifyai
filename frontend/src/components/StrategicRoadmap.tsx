@@ -1,5 +1,6 @@
 import { Calendar, Clock, Target, TrendingUp } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
+import { formatKPIValue } from '@/lib/formatters';
 
 interface StrategicRoadmapProps {
   roadmap: any;
@@ -174,8 +175,8 @@ export default function StrategicRoadmap({ roadmap }: StrategicRoadmapProps) {
                 {kpi.current_value !== null && kpi.target_value !== null && (
                   <div className="mt-2">
                     <div className="flex justify-between text-xs text-gray-600 mb-1">
-                      <span>{kpi.current_value} {kpi.unit}</span>
-                      <span>{kpi.target_value} {kpi.unit}</span>
+                      <span>{formatKPIValue(kpi.current_value, kpi.unit)}</span>
+                      <span>{formatKPIValue(kpi.target_value, kpi.unit)}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-1.5">
                       <div

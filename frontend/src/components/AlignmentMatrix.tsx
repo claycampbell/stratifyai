@@ -1,5 +1,6 @@
 import { ChevronRight, Target, Flag, Lightbulb, BarChart3, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
+import { formatKPIValuePair } from '@/lib/formatters';
 
 interface AlignmentMatrixProps {
   alignment: any[];
@@ -70,6 +71,7 @@ export default function AlignmentMatrix({ alignment }: AlignmentMatrixProps) {
           status: item.kpi_status,
           current_value: item.current_value,
           target_value: item.target_value,
+          unit: item.unit,
         });
       }
     }
@@ -193,7 +195,7 @@ export default function AlignmentMatrix({ alignment }: AlignmentMatrixProps) {
                                           </div>
                                           {kpi.current_value !== null && kpi.target_value !== null && (
                                             <span className="text-xs text-gray-600">
-                                              {kpi.current_value} / {kpi.target_value}
+                                              {formatKPIValuePair(kpi.current_value, kpi.target_value, kpi.unit)}
                                             </span>
                                           )}
                                         </div>
