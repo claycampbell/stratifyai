@@ -68,18 +68,58 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
 // Process document and extract OGSM components
 async function processDocumentAsync(documentId: string, filePath: string, fileType: string) {
+  console.log(`[Document ${documentId}] Starting processing...`);
+
   try {
     // Process the file
     const processed = await FileProcessor.processFile(filePath, fileType);
+    console.log(`[Document ${documentId}] File processed, extracted ${processed.text.length} characters`);
 
-    // Extract OGSM components using Gemini AI
-    const ogsmComponents = await geminiService.extractOGSMFromText(processed.text);
+    if (!processed.text || processed.text.trim().length === 0) {
+      throw new Error('Document contains no extractable text');
+    }
 
-    // Extract KPIs
-    const kpis = await geminiService.extractKPIsFromText(processed.text);
+    // Extract OGSM components using Gemini AI with retry
+    console.log(`[Document ${documentId}] Extracting OGSM components...`);
+    let ogsmComponents = await extractWithRetry(
+      () => geminiService.extractOGSMFromText(processed.text),
+      'OGSM components',
+      documentId
+    );
+
+    // Extract KPIs with retry
+    console.log(`[Document ${documentId}] Extracting KPIs...`);
+    let kpis = await extractWithRetry(
+      () => geminiService.extractKPIsFromText(processed.text),
+      'KPIs',
+      documentId
+    );
+
+    console.log(`[Document ${documentId}] Extraction complete: ${ogsmComponents.length} OGSM components, ${kpis.length} KPIs`);
+
+    // Validate we got meaningful results
+    if (ogsmComponents.length === 0 && kpis.length === 0) {
+      console.warn(`[Document ${documentId}] No OGSM or KPI data extracted - document may not contain strategic content`);
+      // Still mark as processed but log warning in metadata
+      await pool.query(
+        `UPDATE documents SET processed = true, metadata = $1 WHERE id = $2`,
+        [JSON.stringify({
+          ...processed.metadata,
+          warning: 'No strategic content detected',
+          text_length: processed.text.length
+        }), documentId]
+      );
+      return;
+    }
 
     // Save OGSM components to database
+    const componentIdMap = new Map<string, string>();
     for (const component of ogsmComponents) {
+      if (!component.title || !component.component_type) {
+        console.warn(`[Document ${documentId}] Skipping invalid component:`, component);
+        continue;
+      }
+
       const componentResult = await pool.query(
         `INSERT INTO ogsm_components (document_id, component_type, title, description, order_index)
          VALUES ($1, $2, $3, $4, $5) RETURNING *`,
@@ -92,11 +132,18 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
         ]
       );
 
-      // If this component has KPIs, link them
       const componentId = componentResult.rows[0].id;
-      if (component.component_type === 'measure') {
-        // Try to match and link KPIs
+      componentIdMap.set(component.title, componentId);
+
+      // If this is a measure component, link KPIs to it
+      if (component.component_type === 'measure' && kpis.length > 0) {
+        console.log(`[Document ${documentId}] Linking ${kpis.length} KPIs to measure: ${component.title}`);
         for (const kpi of kpis) {
+          if (!kpi.name) {
+            console.warn(`[Document ${documentId}] Skipping KPI with no name:`, kpi);
+            continue;
+          }
+
           await pool.query(
             `INSERT INTO kpis (ogsm_component_id, name, description, target_value, current_value, unit, frequency, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -112,23 +159,90 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
             ]
           );
         }
+        // Clear KPIs after linking to first measure to avoid duplication
+        kpis = [];
+      }
+    }
+
+    // If we have KPIs but no measure components, create standalone KPIs
+    if (kpis.length > 0) {
+      console.log(`[Document ${documentId}] Creating ${kpis.length} standalone KPIs (no measure component found)`);
+      for (const kpi of kpis) {
+        if (!kpi.name) continue;
+
+        await pool.query(
+          `INSERT INTO kpis (name, description, target_value, current_value, unit, frequency, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            kpi.name,
+            kpi.description || '',
+            kpi.target_value || null,
+            kpi.current_value || null,
+            kpi.unit || '',
+            kpi.frequency || 'monthly',
+            'on_track',
+          ]
+        );
       }
     }
 
     // Update document as processed
     await pool.query(
       `UPDATE documents SET processed = true, metadata = $1 WHERE id = $2`,
-      [JSON.stringify(processed.metadata), documentId]
+      [JSON.stringify({
+        ...processed.metadata,
+        ogsm_count: ogsmComponents.length,
+        kpi_count: kpis.length,
+        processed_at: new Date().toISOString()
+      }), documentId]
     );
 
-    console.log(`Document ${documentId} processed successfully`);
+    console.log(`[Document ${documentId}] Processing completed successfully`);
   } catch (error) {
-    console.error(`Error processing document ${documentId}:`, error);
+    console.error(`[Document ${documentId}] Error processing document:`, error);
     await pool.query(
       `UPDATE documents SET processed = false, metadata = $1 WHERE id = $2`,
-      [JSON.stringify({ error: String(error) }), documentId]
+      [JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        failed_at: new Date().toISOString()
+      }), documentId]
     );
   }
+}
+
+// Retry extraction with exponential backoff
+async function extractWithRetry<T>(
+  extractFn: () => Promise<T[]>,
+  dataType: string,
+  documentId: string,
+  maxRetries = 3
+): Promise<T[]> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await extractFn();
+
+      if (result && result.length > 0) {
+        console.log(`[Document ${documentId}] Successfully extracted ${result.length} ${dataType} (attempt ${attempt})`);
+        return result;
+      }
+
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        console.warn(`[Document ${documentId}] No ${dataType} extracted on attempt ${attempt}, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    } catch (error) {
+      console.error(`[Document ${documentId}] Error extracting ${dataType} (attempt ${attempt}):`, error);
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+
+  console.warn(`[Document ${documentId}] Failed to extract ${dataType} after ${maxRetries} attempts`);
+  return [];
 }
 
 // Get all documents

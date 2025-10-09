@@ -14,7 +14,7 @@ export class GeminiService {
       Analyze the following strategic planning document and extract OGSM (Objectives, Goals, Strategies, Measures) components.
 
       Document content:
-      ${text}
+      ${text.substring(0, 50000)} ${text.length > 50000 ? '...(truncated)' : ''}
 
       Please identify and structure the following:
       1. Objectives - High-level outcomes the organization wants to achieve
@@ -31,22 +31,30 @@ export class GeminiService {
       }
 
       Return ONLY the JSON array, no additional text or formatting.
+      If no OGSM components are found, return an empty array: []
     `;
 
     try {
+      console.log('[GeminiService] Extracting OGSM components from text (length: ' + text.length + ')');
       const result = await this.model.generateContent(prompt);
       const response = result.response.text();
+      console.log('[GeminiService] Gemini response length:', response.length);
+      console.log('[GeminiService] Gemini response preview:', response.substring(0, 500));
 
       // Clean up the response to extract JSON
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('[GeminiService] Successfully parsed OGSM components:', parsed.length);
+        return parsed;
       }
 
+      console.warn('[GeminiService] No JSON array found in Gemini response');
+      console.warn('[GeminiService] Full response:', response);
       return [];
     } catch (error) {
-      console.error('Error extracting OGSM components:', error);
-      return [];
+      console.error('[GeminiService] Error extracting OGSM components:', error);
+      throw error; // Throw instead of returning empty array
     }
   }
 
@@ -55,7 +63,7 @@ export class GeminiService {
       Analyze the following text and extract all Key Performance Indicators (KPIs) and metrics.
 
       Text content:
-      ${text}
+      ${text.substring(0, 50000)} ${text.length > 50000 ? '...(truncated)' : ''}
 
       For each KPI, identify:
       - Name of the metric
@@ -76,21 +84,29 @@ export class GeminiService {
       }
 
       Return ONLY the JSON array, no additional text.
+      If no KPIs are found, return an empty array: []
     `;
 
     try {
+      console.log('[GeminiService] Extracting KPIs from text (length: ' + text.length + ')');
       const result = await this.model.generateContent(prompt);
       const response = result.response.text();
+      console.log('[GeminiService] Gemini KPI response length:', response.length);
+      console.log('[GeminiService] Gemini KPI response preview:', response.substring(0, 500));
 
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('[GeminiService] Successfully parsed KPIs:', parsed.length);
+        return parsed;
       }
 
+      console.warn('[GeminiService] No JSON array found in Gemini KPI response');
+      console.warn('[GeminiService] Full response:', response);
       return [];
     } catch (error) {
-      console.error('Error extracting KPIs:', error);
-      return [];
+      console.error('[GeminiService] Error extracting KPIs:', error);
+      throw error; // Throw instead of returning empty array
     }
   }
 

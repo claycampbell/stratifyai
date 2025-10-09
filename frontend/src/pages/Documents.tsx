@@ -18,8 +18,28 @@ export default function Documents() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       setSelectedFile(null);
+      // Start polling to detect when processing completes
+      startPolling();
     },
   });
+
+  // Poll for document processing updates
+  const startPolling = () => {
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+
+      // Check if all documents are processed
+      const currentDocs = queryClient.getQueryData(['documents']) as any[];
+      const allProcessed = currentDocs?.every(doc => doc.processed);
+
+      if (allProcessed && currentDocs?.length > 0) {
+        clearInterval(interval);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    // Stop polling after 5 minutes max
+    setTimeout(() => clearInterval(interval), 300000);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => documentsApi.delete(id),
