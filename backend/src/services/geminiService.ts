@@ -37,12 +37,18 @@ export class GeminiService {
       const result = await this.model.generateContent(prompt);
       const response = result.response.text();
 
+      console.log('OGSM Extraction - Raw response length:', response.length);
+      console.log('OGSM Extraction - First 500 chars:', response.substring(0, 500));
+
       // Clean up the response to extract JSON
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('OGSM Extraction - Parsed components count:', parsed.length);
+        return parsed;
       }
 
+      console.log('OGSM Extraction - No JSON array found in response');
       return [];
     } catch (error) {
       console.error('Error extracting OGSM components:', error);
