@@ -43,7 +43,7 @@ const categoryColors: Record<string, string> = {
   athletics: 'bg-orange-100 text-orange-800 border-orange-300',
 };
 
-export default function KPITemplatesBrowser({ onClose, onTemplateSelected }: KPITemplatesBrowserProps) {
+export default function KPITemplatesBrowser({ onClose, onTemplateSelected: _onTemplateSelected }: KPITemplatesBrowserProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedTemplate, setSelectedTemplate] = useState<KPITemplate | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
