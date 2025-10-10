@@ -318,18 +318,18 @@ const StrategicPlanning: React.FC = () => {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Progress:</span>
-                        <span className="font-medium">{initiative.completion_percentage}%</span>
+                        <span className="font-medium">{parseFloat(String(initiative.completion_percentage || 0))}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={{ width: `${initiative.completion_percentage}%` }}
+                          style={{ width: `${parseFloat(String(initiative.completion_percentage || 0))}%` }}
                         />
                       </div>
                       {initiative.budget_allocated && (
                         <div className="flex justify-between text-sm pt-2 border-t">
                           <span className="text-gray-500">Budget:</span>
-                          <span className="font-medium">{formatCurrency(initiative.budget_allocated)}</span>
+                          <span className="font-medium">{formatCurrency(parseFloat(String(initiative.budget_allocated)) || 0)}</span>
                         </div>
                       )}
                     </div>
@@ -438,12 +438,14 @@ const StrategicPlanning: React.FC = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm capitalize">{budget.budget_type.replace('_', ' ')}</td>
-                        <td className="px-6 py-4 text-sm font-medium">{formatCurrency(budget.allocated_amount)}</td>
-                        <td className="px-6 py-4 text-sm">{formatCurrency(budget.spent_amount)}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-green-600">{formatCurrency(budget.remaining_amount || 0)}</td>
+                        <td className="px-6 py-4 text-sm font-medium">{formatCurrency(parseFloat(String(budget.allocated_amount)) || 0)}</td>
+                        <td className="px-6 py-4 text-sm">{formatCurrency(parseFloat(String(budget.spent_amount)) || 0)}</td>
+                        <td className="px-6 py-4 text-sm font-medium text-green-600">{formatCurrency(parseFloat(String(budget.remaining_amount || 0)))}</td>
                         <td className="px-6 py-4 text-sm">
                           <span className={budget.variance_amount && budget.variance_amount > 0 ? 'text-red-600' : 'text-green-600'}>
-                            {budget.variance_percentage ? `${budget.variance_percentage.toFixed(1)}%` : 'N/A'}
+                            {budget.variance_percentage !== null && budget.variance_percentage !== undefined
+                              ? `${parseFloat(String(budget.variance_percentage)).toFixed(1)}%`
+                              : 'N/A'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -519,16 +521,16 @@ const StrategicPlanning: React.FC = () => {
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
                               className={`h-2 rounded-full transition-all ${
-                                resource.total_allocation_percentage >= 100
+                                (resource.total_allocation_percentage || 0) >= 100
                                   ? 'bg-red-600'
-                                  : resource.total_allocation_percentage >= 75
+                                  : (resource.total_allocation_percentage || 0) >= 75
                                   ? 'bg-yellow-600'
                                   : 'bg-green-600'
                               }`}
-                              style={{ width: `${Math.min(resource.total_allocation_percentage, 100)}%` }}
+                              style={{ width: `${Math.min(resource.total_allocation_percentage || 0, 100)}%` }}
                             />
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">{resource.total_allocation_percentage.toFixed(0)}%</div>
+                          <div className="text-xs text-gray-500 mt-1">{parseFloat(String(resource.total_allocation_percentage || 0)).toFixed(0)}%</div>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 text-xs font-semibold rounded ${getStatusColor(resource.availability_status)}`}>
