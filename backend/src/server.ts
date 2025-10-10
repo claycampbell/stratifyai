@@ -21,6 +21,9 @@ import budgetsRouter from './routes/budgets';
 import resourcesRouter from './routes/resources';
 import dependenciesRouter from './routes/dependencies';
 
+// Admin routes
+import adminRouter from './routes/admin';
+
 dotenv.config();
 
 const app = express();
@@ -62,6 +65,9 @@ app.use('/api/budgets', budgetsRouter);
 app.use('/api/resources', resourcesRouter);
 app.use('/api/dependencies', dependenciesRouter);
 
+// Admin API Routes
+app.use('/api/admin', adminRouter);
+
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -82,6 +88,8 @@ app.get('/', (req: Request, res: Response) => {
       budgets: '/api/budgets',
       resources: '/api/resources',
       dependencies: '/api/dependencies',
+      // Admin
+      admin: '/api/admin',
     },
   });
 });
