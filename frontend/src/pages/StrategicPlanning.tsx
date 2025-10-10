@@ -362,10 +362,10 @@ const StrategicPlanning: React.FC = () => {
                         <span className="text-gray-500">Type:</span>
                         <span className="font-medium capitalize">{scenario.scenario_type.replace('_', ' ')}</span>
                       </div>
-                      {scenario.probability !== null && (
+                      {scenario.probability !== null && scenario.probability !== undefined && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Probability:</span>
-                          <span className="font-medium">{(scenario.probability * 100).toFixed(0)}%</span>
+                          <span className="font-medium">{((scenario.probability ?? 0) * 100).toFixed(0)}%</span>
                         </div>
                       )}
                       <div className="flex justify-between text-sm">
