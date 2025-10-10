@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ogsmTemplatesApi } from '@/lib/api';
-import { X, Plus, Search, Sparkles, Folder } from 'lucide-react';
+import { X, Search, Sparkles, Folder } from 'lucide-react';
 import type { OGSMTemplate } from '@/types';
 
 interface OGSMTemplatesDialogProps {
@@ -101,7 +101,7 @@ export default function OGSMTemplatesDialog({ isOpen, onClose, onApply }: OGSMTe
 
             {/* Category Filters */}
             <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
+              {categories.map((category: string) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
@@ -155,7 +155,7 @@ export default function OGSMTemplatesDialog({ isOpen, onClose, onApply }: OGSMTe
                     {/* Template Structure Preview */}
                     <div className="space-y-1 text-xs text-gray-500 bg-gray-50 p-3 rounded">
                       <div className="font-medium text-gray-700 mb-1">Structure:</div>
-                      {template.structure.slice(0, 3).map((item, idx) => (
+                      {template.structure.slice(0, 3).map((item: { component_type: string; title: string; children?: any[] }, idx: number) => (
                         <div key={idx} className="flex items-center space-x-2">
                           <span className="capitalize">{item.component_type}:</span>
                           <span className="text-gray-700 font-medium">{item.title}</span>
@@ -171,7 +171,7 @@ export default function OGSMTemplatesDialog({ isOpen, onClose, onApply }: OGSMTe
 
                     {template.tags && template.tags.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-1">
-                        {template.tags.map((tag, idx) => (
+                        {template.tags.map((tag: string, idx: number) => (
                           <span
                             key={idx}
                             className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded"
