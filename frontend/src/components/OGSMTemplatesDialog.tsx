@@ -35,8 +35,8 @@ export default function OGSMTemplatesDialog({ isOpen, onClose, onApply }: OGSMTe
   if (!isOpen) return null;
 
   // Get unique categories
-  const categories = templates
-    ? ['all', ...Array.from(new Set(templates.map((t: OGSMTemplate) => t.category).filter(Boolean)))]
+  const categories: string[] = templates
+    ? ['all', ...Array.from(new Set(templates.map((t: OGSMTemplate) => t.category).filter(Boolean))) as string[]]
     : ['all'];
 
   // Filter templates
@@ -101,7 +101,7 @@ export default function OGSMTemplatesDialog({ isOpen, onClose, onApply }: OGSMTe
 
             {/* Category Filters */}
             <div className="flex flex-wrap gap-2">
-              {categories.map((category: string) => (
+              {categories.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
