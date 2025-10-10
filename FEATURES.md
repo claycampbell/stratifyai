@@ -220,13 +220,13 @@ This document tracks missing features, enhancements, and future development prio
 
 | Feature | Priority | Status | Notes |
 |---------|----------|--------|-------|
-| Scenario planning | 🟢 Low | Pending | Model different strategic scenarios |
-| What-if analysis | 🟢 Low | Pending | See impact of changing KPIs |
-| Risk register | 🟡 Medium | Pending | Track strategic risks |
-| Initiative tracking | 🟡 Medium | Pending | Track strategic initiatives/projects |
-| Budget tracking | 🟢 Low | Pending | Link budgets to strategies |
-| Resource allocation | 🟢 Low | Pending | Plan resource needs |
-| Dependency mapping | 🟢 Low | Pending | Visualize strategy dependencies |
+| Scenario planning | 🟢 Low | ✅ Completed | Model different strategic scenarios - 2025-10-09 |
+| What-if analysis | 🟢 Low | ✅ Completed | See impact of changing KPIs - 2025-10-09 |
+| Risk register | 🟡 Medium | ✅ Completed | Track strategic risks with risk matrix - 2025-10-09 |
+| Initiative tracking | 🟡 Medium | ✅ Completed | Track strategic initiatives/projects with milestones - 2025-10-09 |
+| Budget tracking | 🟢 Low | ✅ Completed | Link budgets to strategies with transaction tracking - 2025-10-09 |
+| Resource allocation | 🟢 Low | ✅ Completed | Plan resource needs and allocations - 2025-10-09 |
+| Dependency mapping | 🟢 Low | ✅ Completed | Visualize strategy dependencies with graph analysis - 2025-10-09 |
 
 ---
 
@@ -329,3 +329,10 @@ When implementing features from this roadmap:
 | Strategic roadmap visualization | Initial Release | Timeline-based view |
 | KPI import from CSV/Excel | Initial Release | Bulk import capability |
 | KPI filtering (status, lead) | 2025-10-09 | Filter by status and person |
+| Risk Register | 2025-10-09 | Complete risk management with risk matrix, likelihood/impact scoring, and mitigation tracking |
+| Initiative Tracking | 2025-10-09 | Full initiative lifecycle management with milestones, KPI linking, and progress tracking |
+| Scenario Planning | 2025-10-09 | Create and compare multiple scenarios with KPI projections and probability analysis |
+| What-If Analysis | 2025-10-09 | Run what-if analysis on KPIs to see projected impact of value changes |
+| Budget Tracking | 2025-10-09 | Comprehensive budget management with transactions, variance tracking, and fiscal year support |
+| Resource Allocation | 2025-10-09 | Resource planning with allocation tracking, capacity management, and availability status |
+| Dependency Mapping | 2025-10-09 | Visual dependency mapping with impact analysis, circular dependency detection, and graph visualization |

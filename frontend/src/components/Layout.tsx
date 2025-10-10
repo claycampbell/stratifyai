@@ -4,7 +4,8 @@ import {
   FileText,
   Target,
   TrendingUp,
-  FileBarChart
+  FileBarChart,
+  Layers
 } from 'lucide-react';
 import AIChatBubble from './AIChatBubble';
 
@@ -13,6 +14,7 @@ const navigation = [
   { name: 'Documents', path: '/documents', icon: FileText },
   { name: 'AI Strategy Platform', path: '/ogsm', icon: Target },
   { name: 'KPIs', path: '/kpis', icon: TrendingUp },
+  { name: 'Strategic Planning', path: '/strategic-planning', icon: Layers },
   { name: 'Reports', path: '/reports', icon: FileBarChart },
 ];
 

@@ -5,6 +5,7 @@ import Documents from './pages/Documents';
 import OGSMView from './pages/OGSMView';
 import KPIs from './pages/KPIs';
 import Reports from './pages/Reports';
+import StrategicPlanning from './pages/StrategicPlanning';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="ogsm" element={<OGSMView />} />
           <Route path="kpis" element={<KPIs />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="strategic-planning" element={<StrategicPlanning />} />
         </Route>
       </Routes>
     </Router>

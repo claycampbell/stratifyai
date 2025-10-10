@@ -13,6 +13,14 @@ import kpiEnhancementsRouter from './routes/kpiEnhancements';
 import aiRouter from './routes/ai';
 import dashboardRouter from './routes/dashboard';
 
+// Strategic Planning routes
+import risksRouter from './routes/risks';
+import initiativesRouter from './routes/initiatives';
+import scenariosRouter from './routes/scenarios';
+import budgetsRouter from './routes/budgets';
+import resourcesRouter from './routes/resources';
+import dependenciesRouter from './routes/dependencies';
+
 dotenv.config();
 
 const app = express();
@@ -46,6 +54,14 @@ app.use('/api/kpi-enhancements', kpiEnhancementsRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/dashboard', dashboardRouter);
 
+// Strategic Planning API Routes
+app.use('/api/risks', risksRouter);
+app.use('/api/initiatives', initiativesRouter);
+app.use('/api/scenarios', scenariosRouter);
+app.use('/api/budgets', budgetsRouter);
+app.use('/api/resources', resourcesRouter);
+app.use('/api/dependencies', dependenciesRouter);
+
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -59,6 +75,13 @@ app.get('/', (req: Request, res: Response) => {
       kpi_enhancements: '/api/kpi-enhancements',
       ai: '/api/ai',
       dashboard: '/api/dashboard',
+      // Strategic Planning
+      risks: '/api/risks',
+      initiatives: '/api/initiatives',
+      scenarios: '/api/scenarios',
+      budgets: '/api/budgets',
+      resources: '/api/resources',
+      dependencies: '/api/dependencies',
     },
   });
 });
