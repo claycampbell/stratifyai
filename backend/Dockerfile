@@ -33,6 +33,9 @@ COPY --from=builder /app/dist ./dist
 # Copy database SQL files (needed at runtime)
 COPY src/database ./src/database
 
+# Copy migration scripts
+COPY create-strategic-tables.sql ./
+
 # Create uploads directory
 RUN mkdir -p uploads
 
