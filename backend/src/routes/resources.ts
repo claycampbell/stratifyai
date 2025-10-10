@@ -1,17 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { Pool } from 'pg';
+import pool from '../config/database';
 import { Resource, ResourceAllocation } from '../types';
 
 const router = Router();
-
-// Initialize database pool
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'ogsm_db',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-});
 
 // ============================================================
 // RESOURCES CRUD
