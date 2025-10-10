@@ -475,4 +475,468 @@ router.post('/reinitialize-db', async (req: Request, res: Response) => {
   }
 });
 
+// Seed test data for strategic planning tools
+router.post('/seed-strategic-data', async (req: Request, res: Response) => {
+  try {
+    console.log('Seeding strategic planning test data...');
+    const createdItems: any = {
+      risks: [],
+      initiatives: [],
+      scenarios: [],
+      budgets: [],
+      resources: [],
+      dependencies: []
+    };
+
+    // Get existing OGSM components and KPIs to link to
+    const ogsmResult = await pool.query('SELECT id, component_type, title FROM ogsm_components LIMIT 5');
+    const kpisResult = await pool.query('SELECT id, name FROM kpis LIMIT 5');
+
+    const ogsmComponents = ogsmResult.rows;
+    const kpis = kpisResult.rows;
+
+    // 1. Create Risks
+    const risks = [
+      {
+        title: 'Budget Constraints Impact Athletic Programs',
+        description: 'Reduced funding may limit recruitment and facility improvements',
+        category: 'financial',
+        likelihood: 'high',
+        impact: 'high',
+        status: 'mitigating',
+        mitigation_strategy: 'Diversify revenue streams through sponsorships and alumni donations',
+        owner_email: 'athletics.director@rmu.edu'
+      },
+      {
+        title: 'Key Coaching Staff Retention Risk',
+        description: 'Competition from larger programs may attract top coaches',
+        category: 'operational',
+        likelihood: 'medium',
+        impact: 'very_high',
+        status: 'monitoring',
+        mitigation_strategy: 'Competitive compensation packages and career development opportunities',
+        owner_email: 'hr.athletics@rmu.edu'
+      },
+      {
+        title: 'NCAA Compliance Changes',
+        description: 'New regulations may require operational adjustments',
+        category: 'compliance',
+        likelihood: 'medium',
+        impact: 'medium',
+        status: 'assessing',
+        mitigation_strategy: 'Dedicated compliance team and regular policy reviews',
+        owner_email: 'compliance@rmu.edu'
+      },
+      {
+        title: 'Student-Athlete Academic Performance',
+        description: 'Risk of not meeting academic progress requirements',
+        category: 'reputational',
+        likelihood: 'low',
+        impact: 'high',
+        status: 'monitoring',
+        mitigation_strategy: 'Enhanced tutoring programs and academic support services',
+        owner_email: 'academic.services@rmu.edu'
+      },
+      {
+        title: 'Facility Infrastructure Aging',
+        description: 'Aging athletic facilities may affect recruitment and safety',
+        category: 'operational',
+        likelihood: 'high',
+        impact: 'medium',
+        status: 'identified',
+        mitigation_strategy: 'Phased renovation plan with capital campaign',
+        owner_email: 'facilities@rmu.edu'
+      }
+    ];
+
+    for (const risk of risks) {
+      const result = await pool.query(
+        `INSERT INTO risks (ogsm_component_id, title, description, category, likelihood, impact, status, mitigation_strategy, owner_email, tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, title`,
+        [
+          ogsmComponents[0]?.id || null,
+          risk.title,
+          risk.description,
+          risk.category,
+          risk.likelihood,
+          risk.impact,
+          risk.status,
+          risk.mitigation_strategy,
+          risk.owner_email,
+          ['athletics', 'strategic']
+        ]
+      );
+      createdItems.risks.push(result.rows[0]);
+    }
+
+    // 2. Create Initiatives
+    const initiatives = [
+      {
+        title: 'Athlete Mental Health & Wellness Program',
+        description: 'Comprehensive mental health support program for all student-athletes',
+        objective: 'Improve student-athlete wellbeing and retention rates',
+        status: 'in_progress',
+        priority: 'high',
+        start_date: '2025-01-01',
+        target_end_date: '2025-12-31',
+        completion_percentage: 35,
+        budget_allocated: 150000,
+        budget_spent: 45000,
+        owner_email: 'wellness@rmu.edu',
+        expected_benefits: 'Reduced athlete burnout, improved academic performance, higher retention',
+        success_criteria: '90% athlete satisfaction, 15% reduction in withdrawals'
+      },
+      {
+        title: 'Athletic Facilities Modernization Phase 1',
+        description: 'Upgrade training facilities and locker rooms',
+        objective: 'Enhance recruitment competitiveness and athlete experience',
+        status: 'approved',
+        priority: 'critical',
+        start_date: '2025-06-01',
+        target_end_date: '2026-05-31',
+        completion_percentage: 10,
+        budget_allocated: 2500000,
+        budget_spent: 250000,
+        owner_email: 'facilities@rmu.edu',
+        expected_benefits: 'Improved recruitment, enhanced athlete performance, modernized infrastructure',
+        success_criteria: 'Complete renovation on time and under budget'
+      },
+      {
+        title: 'Digital Athletic Performance Platform',
+        description: 'Implement data analytics platform for performance tracking',
+        objective: 'Leverage data to optimize athletic performance',
+        status: 'planning',
+        priority: 'medium',
+        start_date: '2025-08-01',
+        target_end_date: '2025-12-31',
+        completion_percentage: 5,
+        budget_allocated: 75000,
+        budget_spent: 0,
+        owner_email: 'performance@rmu.edu',
+        expected_benefits: 'Data-driven coaching decisions, injury prevention, performance optimization',
+        success_criteria: 'Platform adoption by 80% of coaching staff'
+      },
+      {
+        title: 'Alumni Engagement & Fundraising Campaign',
+        description: 'Launch comprehensive alumni fundraising initiative',
+        objective: 'Increase athletic department revenue through alumni contributions',
+        status: 'in_progress',
+        priority: 'high',
+        start_date: '2025-02-01',
+        target_end_date: '2025-11-30',
+        completion_percentage: 50,
+        budget_allocated: 100000,
+        budget_spent: 55000,
+        owner_email: 'development@rmu.edu',
+        expected_benefits: 'Sustainable funding, enhanced alumni network, scholarship opportunities',
+        success_criteria: 'Raise $1M in commitments, 500+ new donors'
+      }
+    ];
+
+    for (const initiative of initiatives) {
+      const result = await pool.query(
+        `INSERT INTO initiatives (ogsm_component_id, title, description, objective, status, priority, start_date, target_end_date,
+         completion_percentage, budget_allocated, budget_spent, owner_email, expected_benefits, success_criteria, tags, team_members)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, title`,
+        [
+          ogsmComponents[1]?.id || null,
+          initiative.title,
+          initiative.description,
+          initiative.objective,
+          initiative.status,
+          initiative.priority,
+          initiative.start_date,
+          initiative.target_end_date,
+          initiative.completion_percentage,
+          initiative.budget_allocated,
+          initiative.budget_spent,
+          initiative.owner_email,
+          initiative.expected_benefits,
+          initiative.success_criteria,
+          ['athletics', 'strategic', '2025'],
+          [initiative.owner_email, 'athletics.director@rmu.edu']
+        ]
+      );
+      createdItems.initiatives.push(result.rows[0]);
+
+      // Add milestones for first initiative
+      if (createdItems.initiatives.length === 1) {
+        await pool.query(
+          `INSERT INTO initiative_milestones (initiative_id, title, description, target_date, completed)
+           VALUES
+           ($1, 'Hire Mental Health Coordinator', 'Recruit and onboard dedicated mental health professional', '2025-02-15', true),
+           ($1, 'Launch Peer Support Program', 'Train and deploy peer support network', '2025-04-01', true),
+           ($1, 'Implement Wellness Workshops', 'Monthly wellness sessions for all athletes', '2025-06-01', false),
+           ($1, 'Program Evaluation & Reporting', 'Assess program effectiveness and outcomes', '2025-12-15', false)`,
+          [result.rows[0].id]
+        );
+
+        // Link to KPIs
+        if (kpis.length > 0) {
+          await pool.query(
+            `INSERT INTO initiative_kpis (initiative_id, kpi_id, target_impact_description)
+             VALUES ($1, $2, 'Expected to improve student-athlete retention by 15%')`,
+            [result.rows[0].id, kpis[0].id]
+          );
+        }
+      }
+    }
+
+    // 3. Create Scenarios
+    const scenarios = [
+      {
+        name: 'Best Case: Increased Conference Revenue',
+        description: 'Conference TV deal provides 30% revenue increase',
+        scenario_type: 'best_case',
+        assumptions: 'New media rights deal, increased sponsorships, successful fundraising',
+        probability: 0.25,
+        status: 'active',
+        is_baseline: false
+      },
+      {
+        name: 'Baseline: Current Trajectory',
+        description: 'Steady state operations with 3% annual growth',
+        scenario_type: 'most_likely',
+        assumptions: 'Moderate enrollment, stable funding, consistent performance',
+        probability: 0.50,
+        status: 'active',
+        is_baseline: true
+      },
+      {
+        name: 'Worst Case: Budget Cuts',
+        description: 'University-wide budget reduction impacts athletics by 20%',
+        scenario_type: 'worst_case',
+        assumptions: 'Economic downturn, reduced enrollment, decreased state funding',
+        probability: 0.25,
+        status: 'active',
+        is_baseline: false
+      }
+    ];
+
+    for (const scenario of scenarios) {
+      const result = await pool.query(
+        `INSERT INTO scenarios (name, description, scenario_type, assumptions, probability, status, is_baseline, created_by, tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name`,
+        [
+          scenario.name,
+          scenario.description,
+          scenario.scenario_type,
+          scenario.assumptions,
+          scenario.probability,
+          scenario.status,
+          scenario.is_baseline,
+          'athletics.director@rmu.edu',
+          ['athletics', 'planning', '2025']
+        ]
+      );
+      createdItems.scenarios.push(result.rows[0]);
+
+      // Add KPI projections if we have KPIs
+      if (kpis.length > 0) {
+        const baseValue = 100;
+        const multiplier = scenario.scenario_type === 'best_case' ? 1.3 :
+                          scenario.scenario_type === 'worst_case' ? 0.8 : 1.0;
+
+        await pool.query(
+          `INSERT INTO scenario_kpi_projections (scenario_id, kpi_id, projected_value, projection_date, confidence_level, assumptions)
+           VALUES ($1, $2, $3, '2025-12-31', $4, $5)`,
+          [
+            result.rows[0].id,
+            kpis[0].id,
+            baseValue * multiplier,
+            scenario.scenario_type === 'most_likely' ? 'high' : 'medium',
+            scenario.assumptions
+          ]
+        );
+      }
+    }
+
+    // 4. Create Budgets
+    const budgets = [
+      {
+        budget_name: 'FY2025 Athletic Operations Budget',
+        description: 'Primary operating budget for all athletic programs',
+        budget_type: 'operational',
+        fiscal_year: 2025,
+        fiscal_quarter: null,
+        allocated_amount: 8500000,
+        spent_amount: 2800000,
+        committed_amount: 1200000,
+        owner_email: 'finance.athletics@rmu.edu'
+      },
+      {
+        budget_name: 'Facilities Renovation Capital Budget',
+        description: 'Capital budget for facility improvements',
+        budget_type: 'capital',
+        fiscal_year: 2025,
+        fiscal_quarter: null,
+        allocated_amount: 2500000,
+        spent_amount: 250000,
+        committed_amount: 800000,
+        owner_email: 'facilities@rmu.edu'
+      },
+      {
+        budget_name: 'Q3 2025 Recruitment & Marketing',
+        description: 'Quarterly budget for recruitment and promotional activities',
+        budget_type: 'discretionary',
+        fiscal_year: 2025,
+        fiscal_quarter: 3,
+        allocated_amount: 150000,
+        spent_amount: 45000,
+        committed_amount: 25000,
+        owner_email: 'marketing.athletics@rmu.edu'
+      }
+    ];
+
+    for (const budget of budgets) {
+      const result = await pool.query(
+        `INSERT INTO budgets (initiative_id, budget_name, description, budget_type, fiscal_year, fiscal_quarter,
+         allocated_amount, spent_amount, committed_amount, owner_email, status, tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11) RETURNING id, budget_name`,
+        [
+          createdItems.initiatives[1]?.id || null,
+          budget.budget_name,
+          budget.description,
+          budget.budget_type,
+          budget.fiscal_year,
+          budget.fiscal_quarter,
+          budget.allocated_amount,
+          budget.spent_amount,
+          budget.committed_amount,
+          budget.owner_email,
+          ['athletics', 'finance', 'fy2025']
+        ]
+      );
+      createdItems.budgets.push(result.rows[0]);
+
+      // Add sample transactions
+      await pool.query(
+        `INSERT INTO budget_transactions (budget_id, transaction_type, amount, transaction_date, description, category, approved_by)
+         VALUES
+         ($1, 'expenditure', -50000, '2025-01-15', 'Equipment purchases', 'Equipment', 'finance.director@rmu.edu'),
+         ($1, 'expenditure', -35000, '2025-02-10', 'Travel expenses', 'Travel', 'finance.director@rmu.edu'),
+         ($1, 'commitment', -25000, '2025-03-01', 'Contracted services', 'Services', 'finance.director@rmu.edu')`,
+        [result.rows[0].id]
+      );
+    }
+
+    // 5. Create Resources
+    const resources = [
+      {
+        resource_name: 'Dr. Sarah Mitchell - Sports Psychologist',
+        resource_type: 'human',
+        description: 'Licensed sports psychologist specializing in athlete mental health',
+        department: 'Athletic Performance',
+        email: 's.mitchell@rmu.edu',
+        skills: ['Sports Psychology', 'Counseling', 'Performance Coaching'],
+        capacity_hours_per_week: 40,
+        cost_per_hour: 75,
+        availability_status: 'partially_allocated'
+      },
+      {
+        resource_name: 'John Davis - Strength & Conditioning Coach',
+        resource_type: 'human',
+        description: 'Head strength and conditioning coordinator',
+        department: 'Athletic Performance',
+        email: 'j.davis@rmu.edu',
+        skills: ['Strength Training', 'Injury Prevention', 'Athletic Performance'],
+        capacity_hours_per_week: 40,
+        cost_per_hour: 60,
+        availability_status: 'fully_allocated'
+      },
+      {
+        resource_name: 'Athletic Training Facility',
+        resource_type: 'facility',
+        description: 'Main athletic training and conditioning facility',
+        department: 'Facilities',
+        capacity_hours_per_week: 168,
+        cost_per_hour: 0,
+        availability_status: 'available'
+      },
+      {
+        resource_name: 'Hudl Performance Analysis Software',
+        resource_type: 'software',
+        description: 'Video analysis and performance tracking platform',
+        department: 'Technology',
+        cost_per_hour: 5,
+        availability_status: 'available'
+      }
+    ];
+
+    for (const resource of resources) {
+      const result = await pool.query(
+        `INSERT INTO resources (resource_name, resource_type, description, department, email, skills,
+         capacity_hours_per_week, cost_per_hour, availability_status, tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, resource_name`,
+        [
+          resource.resource_name,
+          resource.resource_type,
+          resource.description,
+          resource.department,
+          resource.email || null,
+          resource.skills || null,
+          resource.capacity_hours_per_week || null,
+          resource.cost_per_hour || null,
+          resource.availability_status,
+          ['athletics', 'active']
+        ]
+      );
+      createdItems.resources.push(result.rows[0]);
+
+      // Add allocations for human resources
+      if (resource.resource_type === 'human' && createdItems.initiatives.length > 0) {
+        const allocation = resource.resource_name.includes('Mitchell') ? 60 : 100;
+        await pool.query(
+          `INSERT INTO resource_allocations (resource_id, initiative_id, allocation_percentage, start_date, end_date, role, status)
+           VALUES ($1, $2, $3, '2025-01-01', '2025-12-31', $4, 'active')`,
+          [
+            result.rows[0].id,
+            createdItems.initiatives[0].id,
+            allocation,
+            resource.resource_type === 'human' ? 'Program Lead' : 'Support Resource'
+          ]
+        );
+      }
+    }
+
+    // 6. Create Dependencies
+    if (createdItems.initiatives.length >= 2) {
+      const depResult = await pool.query(
+        `INSERT INTO dependencies (source_type, source_id, target_type, target_id, dependency_type, description, strength, status)
+         VALUES
+         ('initiative', $1, 'initiative', $2, 'depends_on', 'Mental health program depends on facilities being ready', 'medium', 'active'),
+         ('initiative', $2, 'initiative', $3, 'blocks', 'Facility work blocks digital platform installation', 'strong', 'active')
+         RETURNING id`,
+        [
+          createdItems.initiatives[0].id,
+          createdItems.initiatives[1].id,
+          createdItems.initiatives[2]?.id || createdItems.initiatives[0].id
+        ]
+      );
+      createdItems.dependencies = depResult.rows;
+    }
+
+    res.json({
+      success: true,
+      message: 'Strategic planning test data created successfully',
+      created: {
+        risks: createdItems.risks.length,
+        initiatives: createdItems.initiatives.length,
+        scenarios: createdItems.scenarios.length,
+        budgets: createdItems.budgets.length,
+        resources: createdItems.resources.length,
+        dependencies: createdItems.dependencies.length
+      },
+      details: createdItems
+    });
+  } catch (error: any) {
+    console.error('Error seeding strategic data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      detail: error.detail || error.stack
+    });
+  }
+});
+
 export default router;
