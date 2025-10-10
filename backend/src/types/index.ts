@@ -262,3 +262,38 @@ export interface Dependency {
   created_at: Date;
   updated_at: Date;
 }
+
+export interface OGSMTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  structure: OGSMTemplateComponent[];
+  is_public: boolean;
+  usage_count: number;
+  created_by?: string;
+  tags?: string[];
+  metadata?: Record<string, any>;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface OGSMTemplateComponent {
+  component_type: 'objective' | 'goal' | 'strategy' | 'measure';
+  title: string;
+  description?: string;
+  children?: OGSMTemplateComponent[];
+}
+
+export interface OGSMComponentVersion {
+  id: string;
+  component_id: string;
+  version_number: number;
+  title: string;
+  description?: string;
+  parent_id?: string;
+  order_index: number;
+  changed_by?: string;
+  change_description?: string;
+  created_at: Date;
+}

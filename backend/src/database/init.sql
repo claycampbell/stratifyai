@@ -348,6 +348,41 @@ CREATE TABLE IF NOT EXISTS dependencies (
     UNIQUE(source_type, source_id, target_type, target_id, dependency_type)
 );
 
+-- ============================================================
+-- OGSM COMPONENT TEMPLATES
+-- ============================================================
+
+-- OGSM Component Templates table
+CREATE TABLE IF NOT EXISTS ogsm_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100), -- 'business', 'athletics', 'education', 'nonprofit', 'healthcare', 'technology', etc.
+    structure JSONB NOT NULL, -- JSON structure of the template with components and hierarchy
+    is_public BOOLEAN DEFAULT TRUE,
+    usage_count INTEGER DEFAULT 0,
+    created_by VARCHAR(255),
+    tags VARCHAR(255)[],
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- OGSM Component Versions table (for component versioning)
+CREATE TABLE IF NOT EXISTS ogsm_component_versions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    component_id UUID REFERENCES ogsm_components(id) ON DELETE CASCADE,
+    version_number INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    parent_id UUID,
+    order_index INTEGER,
+    changed_by VARCHAR(255),
+    change_description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(component_id, version_number)
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_documents_upload_date ON documents(upload_date DESC);
 CREATE INDEX IF NOT EXISTS idx_ogsm_components_type ON ogsm_components(component_type);
@@ -399,3 +434,7 @@ CREATE INDEX IF NOT EXISTS idx_resource_allocations_dates ON resource_allocation
 CREATE INDEX IF NOT EXISTS idx_dependencies_source ON dependencies(source_type, source_id);
 CREATE INDEX IF NOT EXISTS idx_dependencies_target ON dependencies(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_dependencies_type ON dependencies(dependency_type);
+CREATE INDEX IF NOT EXISTS idx_ogsm_templates_category ON ogsm_templates(category);
+CREATE INDEX IF NOT EXISTS idx_ogsm_templates_public ON ogsm_templates(is_public);
+CREATE INDEX IF NOT EXISTS idx_ogsm_templates_tags ON ogsm_templates USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_ogsm_component_versions_component ON ogsm_component_versions(component_id, version_number DESC);

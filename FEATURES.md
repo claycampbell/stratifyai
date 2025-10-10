@@ -49,12 +49,12 @@ This document tracks missing features, enhancements, and future development prio
 
 | Feature | Priority | Status | Notes |
 |---------|----------|--------|-------|
-| Drag-and-drop reordering | 🟡 Medium | Pending | Reorder components visually |
-| Visual hierarchy editor | 🟡 Medium | Pending | Tree view for editing parent-child relationships |
-| Component templates | 🟡 Medium | Pending | Template library for common OGSM structures |
-| Duplicate components | 🟡 Medium | Pending | Clone existing components |
-| Component versioning | 🟢 Low | Pending | Track changes to components over time |
-| Parent-child validation | 🟡 Medium | Pending | Ensure proper hierarchy |
+| Drag-and-drop reordering | 🟡 Medium | ✅ Completed | HTML5 drag-and-drop with visual feedback - 2025-10-10 |
+| Visual hierarchy editor | 🟡 Medium | ✅ Completed | Tree view with expand/collapse and level indicators - 2025-10-10 |
+| Component templates | 🟡 Medium | ✅ Completed | Full template library with browse, apply, and usage tracking - 2025-10-10 |
+| Duplicate components | 🟡 Medium | ✅ Completed | Clone with optional recursive child duplication - 2025-10-10 |
+| Component versioning | 🟢 Low | Pending | Track changes to components over time - Database table created |
+| Parent-child validation | 🟡 Medium | ✅ Completed | Circular dependency detection and hierarchy validation - 2025-10-10 |
 | Rich text editor | 🟢 Low | Pending | Format descriptions with markdown/HTML |
 | Attachments | 🟢 Low | Pending | Attach files to OGSM components |
 
@@ -336,3 +336,8 @@ When implementing features from this roadmap:
 | Budget Tracking | 2025-10-09 | Comprehensive budget management with transactions, variance tracking, and fiscal year support |
 | Resource Allocation | 2025-10-09 | Resource planning with allocation tracking, capacity management, and availability status |
 | Dependency Mapping | 2025-10-09 | Visual dependency mapping with impact analysis, circular dependency detection, and graph visualization |
+| OGSM Drag-and-Drop Reordering | 2025-10-10 | HTML5 drag-and-drop for reordering components with visual feedback |
+| OGSM Visual Hierarchy Editor | 2025-10-10 | Tree view with expand/collapse, level indicators, and parent-child relationships |
+| OGSM Component Templates | 2025-10-10 | Template library with browse, search, categorization, apply functionality, and usage tracking |
+| OGSM Duplicate Components | 2025-10-10 | Clone components with optional recursive child duplication |
+| OGSM Parent-Child Validation | 2025-10-10 | Circular dependency detection and OGSM hierarchy rule validation |

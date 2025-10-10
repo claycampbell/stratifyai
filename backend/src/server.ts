@@ -8,6 +8,7 @@ import pool from './config/database';
 // Import routes
 import documentsRouter from './routes/documents';
 import ogsmRouter from './routes/ogsm';
+import ogsmTemplatesRouter from './routes/ogsmTemplates';
 import kpisRouter from './routes/kpis';
 import kpiEnhancementsRouter from './routes/kpiEnhancements';
 import aiRouter from './routes/ai';
@@ -52,6 +53,7 @@ app.get('/health', (req: Request, res: Response) => {
 // API Routes
 app.use('/api/documents', documentsRouter);
 app.use('/api/ogsm', ogsmRouter);
+app.use('/api/ogsm-templates', ogsmTemplatesRouter);
 app.use('/api/kpis', kpisRouter);
 app.use('/api/kpi-enhancements', kpiEnhancementsRouter);
 app.use('/api/ai', aiRouter);
@@ -77,6 +79,7 @@ app.get('/', (req: Request, res: Response) => {
       health: '/health',
       documents: '/api/documents',
       ogsm: '/api/ogsm',
+      ogsm_templates: '/api/ogsm-templates',
       kpis: '/api/kpis',
       kpi_enhancements: '/api/kpi-enhancements',
       ai: '/api/ai',

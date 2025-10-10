@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ogsmApi } from '@/lib/api';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Copy, List, Network, Sparkles } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import OGSMTreeView from '@/components/OGSMTreeView';
+import OGSMTemplatesDialog from '@/components/OGSMTemplatesDialog';
 
 const componentTypes = ['objective', 'goal', 'strategy', 'measure'] as const;
 
@@ -10,7 +12,9 @@ export default function OGSMView() {
   const [searchParams] = useSearchParams();
   const filterFromUrl = searchParams.get('filter');
   const [selectedType, setSelectedType] = useState<string>(filterFromUrl || 'all');
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
   const [isCreating, setIsCreating] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [newComponent, setNewComponent] = useState({
     component_type: 'objective',
     title: '',
@@ -49,10 +53,37 @@ export default function OGSMView() {
     },
   });
 
+  const duplicateMutation = useMutation({
+    mutationFn: ({ id, includeChildren }: { id: string; includeChildren: boolean }) =>
+      ogsmApi.duplicate(id, includeChildren),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ogsm'] });
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (updates: Array<{ id: string; order_index?: number; parent_id?: string | null }>) =>
+      ogsmApi.bulkReorder(updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ogsm'] });
+    },
+  });
+
   const handleCreate = () => {
     if (newComponent.title) {
       createMutation.mutate(newComponent);
     }
+  };
+
+  const handleDuplicate = (id: string) => {
+    const confirm = window.confirm(
+      'Do you want to duplicate this component including all its children?'
+    );
+    duplicateMutation.mutate({ id, includeChildren: confirm });
+  };
+
+  const handleReorder = (updates: Array<{ id: string; order_index?: number; parent_id?: string | null }>) => {
+    reorderMutation.mutate(updates);
   };
 
   const getTypeColor = (type: string) => {
@@ -74,41 +105,78 @@ export default function OGSMView() {
             Manage Objectives, Goals, Strategies, and Measures
           </p>
         </div>
-        <button
-          onClick={() => setIsCreating(true)}
-          className="btn btn-primary flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Component
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="btn btn-secondary flex items-center"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Use Template
+          </button>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="btn btn-primary flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Component
+          </button>
+        </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs and View Toggle */}
       <div className="card">
-        <div className="flex space-x-2 border-b border-gray-200">
-          <button
-            onClick={() => setSelectedType('all')}
-            className={`px-4 py-2 text-sm font-medium ${
-              selectedType === 'all'
-                ? 'border-b-2 border-primary-600 text-primary-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            All
-          </button>
-          {componentTypes.map((type) => (
+        <div className="flex justify-between items-center border-b border-gray-200">
+          <div className="flex space-x-2">
             <button
-              key={type}
-              onClick={() => setSelectedType(type)}
-              className={`px-4 py-2 text-sm font-medium capitalize ${
-                selectedType === type
+              onClick={() => setSelectedType('all')}
+              className={`px-4 py-2 text-sm font-medium ${
+                selectedType === 'all'
                   ? 'border-b-2 border-primary-600 text-primary-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {type === 'strategy' ? 'Strategies' : `${type}s`}
+              All
             </button>
-          ))}
+            {componentTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={`px-4 py-2 text-sm font-medium capitalize ${
+                  selectedType === type
+                    ? 'border-b-2 border-primary-600 text-primary-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {type === 'strategy' ? 'Strategies' : `${type}s`}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center space-x-2 px-4">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-primary-100 text-primary-600'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              title="List view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('tree')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'tree'
+                  ? 'bg-primary-100 text-primary-600'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              title="Hierarchy view"
+            >
+              <Network className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -173,45 +241,71 @@ export default function OGSMView() {
         </div>
       )}
 
-      {/* Components List */}
+      {/* Components List/Tree View */}
       <div className="card">
         {isLoading ? (
-          <p className="text-gray-600">Loading components...</p>
+          <p className="text-gray-600 p-4">Loading components...</p>
         ) : components && components.length > 0 ? (
-          <div className="space-y-3">
-            {components.map((component: any) => (
-              <div
-                key={component.id}
-                className="flex items-start justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <span
-                      className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${getTypeColor(
-                        component.component_type
-                      )}`}
-                    >
-                      {component.component_type}
-                    </span>
-                    <h3 className="font-semibold text-gray-900">{component.title}</h3>
-                  </div>
-                  {component.description && (
-                    <p className="text-sm text-gray-600">{component.description}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => deleteMutation.mutate(component.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          viewMode === 'tree' ? (
+            <OGSMTreeView
+              components={components}
+              onDuplicate={handleDuplicate}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              onReorder={handleReorder}
+            />
+          ) : (
+            <div className="space-y-3 p-4">
+              {components.map((component: any) => (
+                <div
+                  key={component.id}
+                  className="flex items-start justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              </div>
-            ))}
-          </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <span
+                        className={`px-3 py-1 text-xs font-medium rounded-full capitalize ${getTypeColor(
+                          component.component_type
+                        )}`}
+                      >
+                        {component.component_type}
+                      </span>
+                      <h3 className="font-semibold text-gray-900">{component.title}</h3>
+                    </div>
+                    {component.description && (
+                      <p className="text-sm text-gray-600">{component.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleDuplicate(component.id)}
+                      disabled={duplicateMutation.isPending}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Duplicate component"
+                    >
+                      <Copy className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => deleteMutation.mutate(component.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete component"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : (
-          <p className="text-gray-600">No components found. Create your first component!</p>
+          <p className="text-gray-600 p-4">No components found. Create your first component!</p>
         )}
       </div>
+
+      {/* Templates Dialog */}
+      <OGSMTemplatesDialog
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+      />
     </div>
   );
 }

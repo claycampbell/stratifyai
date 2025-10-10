@@ -33,6 +33,20 @@ export const ogsmApi = {
   update: (id: string, data: any) => api.put(`/ogsm/${id}`, data),
   delete: (id: string) => api.delete(`/ogsm/${id}`),
   getHierarchy: () => api.get('/ogsm/hierarchy/tree'),
+  duplicate: (id: string, includeChildren?: boolean) =>
+    api.post(`/ogsm/${id}/duplicate`, { include_children: includeChildren }),
+  bulkReorder: (updates: Array<{ id: string; order_index?: number; parent_id?: string | null }>) =>
+    api.post('/ogsm/bulk/reorder', { updates }),
+};
+
+// OGSM Templates API
+export const ogsmTemplatesApi = {
+  getAll: (params?: { category?: string; is_public?: boolean }) => api.get('/ogsm-templates', { params }),
+  getById: (id: string) => api.get(`/ogsm-templates/${id}`),
+  create: (data: any) => api.post('/ogsm-templates', data),
+  update: (id: string, data: any) => api.put(`/ogsm-templates/${id}`, data),
+  delete: (id: string) => api.delete(`/ogsm-templates/${id}`),
+  apply: (id: string, documentId?: string) => api.post(`/ogsm-templates/${id}/apply`, { document_id: documentId }),
 };
 
 // KPIs API
