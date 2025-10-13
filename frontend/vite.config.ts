@@ -10,10 +10,14 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    host: true, // Allow external connections (needed for Docker)
+    port: 5173,
+    watch: {
+      usePolling: true, // Needed for hot reload in Docker on Windows
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: process.env.VITE_API_URL || 'http://backend:5000',
         changeOrigin: true,
       },
     },

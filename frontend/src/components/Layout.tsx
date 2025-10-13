@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -6,9 +7,11 @@ import {
   TrendingUp,
   FileBarChart,
   Layers,
-  Sparkles
+  Sparkles,
+  Bell
 } from 'lucide-react';
 import AIChatBubble from './AIChatBubble';
+import KPIUpdateNotification from './KPIUpdateNotification';
 
 const navigation = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -22,13 +25,14 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation();
+  const [triggerNotification, setTriggerNotification] = useState<(() => void) | null>(null);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/RMU_Colonials_logo.svg/1200px-RMU_Colonials_logo.svg.png"
@@ -40,6 +44,16 @@ export default function Layout() {
                 StratifyAI
               </span>
             </div>
+
+            {/* KPI Notification Trigger Button */}
+            <button
+              onClick={() => triggerNotification?.()}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              title="Test KPI Update Notification"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="text-sm font-medium">KPI Reminder</span>
+            </button>
           </div>
         </div>
       </header>
@@ -81,6 +95,12 @@ export default function Layout() {
 
       {/* Global AI Chat Bubble */}
       <AIChatBubble />
+
+      {/* KPI Update Notification */}
+      <KPIUpdateNotification
+        checkInterval={7}
+        onTrigger={(callback) => setTriggerNotification(() => callback)}
+      />
     </div>
   );
 }

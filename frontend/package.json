@@ -2,6 +2,7 @@
   "name": "ogsm-manager-frontend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "AI-Powered OGSM Management Platform - Frontend",
   "scripts": {
     "dev": "vite",
