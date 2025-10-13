@@ -295,3 +295,64 @@ export interface OGSMComponentVersion {
   change_description?: string;
   created_at: string;
 }
+
+// AI Strategy Generation Types
+
+export interface StrategyGenerationContext {
+  objective: string;
+  industry?: string;
+  company_size?: string;
+  current_situation?: string;
+  constraints?: string;
+  resources?: string;
+  timeframe?: string;
+}
+
+export interface GeneratedStrategy {
+  title: string;
+  description: string;
+  rationale: string;
+  implementation_steps: string[];
+  success_probability: number;
+  estimated_cost: 'low' | 'medium' | 'high';
+  timeframe: string;
+  risks: string[];
+  required_resources: string[];
+  success_metrics: string[];
+  supporting_evidence: string[];
+}
+
+export interface StrategyGenerationResponse {
+  strategies: GeneratedStrategy[];
+  generated_at: string;
+  model: string;
+}
+
+export interface StrategyKnowledge {
+  id: string;
+  title: string;
+  description: string;
+  strategy_text: string;
+  industry?: string;
+  company_size?: string;
+  objective_type?: string;
+  success_metrics?: Record<string, any>;
+  outcomes?: Record<string, any>;
+  implementation_cost?: string;
+  timeframe?: string;
+  difficulty_level?: string;
+  success_rate?: number;
+  case_study_source?: string;
+  tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StrategyFeedback {
+  generated_strategy_id: string;
+  rating: number;
+  feedback_type: 'implementation' | 'outcome' | 'general';
+  comments?: string;
+  outcome_achieved?: boolean;
+  outcome_data?: Record<string, any>;
+}

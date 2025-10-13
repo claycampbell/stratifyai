@@ -383,6 +383,59 @@ CREATE TABLE IF NOT EXISTS ogsm_component_versions (
     UNIQUE(component_id, version_number)
 );
 
+-- ============================================================
+-- ADVANCED AI FEATURES - STRATEGY KNOWLEDGE BASE
+-- ============================================================
+
+-- Strategy Knowledge Base table (for RAG)
+CREATE TABLE IF NOT EXISTS strategy_knowledge (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(500) NOT NULL,
+    description TEXT NOT NULL,
+    strategy_text TEXT NOT NULL,
+    industry VARCHAR(100), -- 'technology', 'healthcare', 'finance', 'retail', etc.
+    company_size VARCHAR(50), -- 'startup', 'small', 'medium', 'enterprise'
+    objective_type VARCHAR(100), -- 'growth', 'efficiency', 'innovation', 'market_share', etc.
+    success_metrics JSONB, -- { "metric": "value", "timeframe": "6 months" }
+    outcomes JSONB, -- { "revenue_impact": "+25%", "customer_growth": "+40%" }
+    implementation_cost VARCHAR(50), -- 'low', 'medium', 'high'
+    timeframe VARCHAR(50), -- '3-6 months', '6-12 months', '1-2 years'
+    difficulty_level VARCHAR(50), -- 'easy', 'moderate', 'challenging', 'complex'
+    success_rate DECIMAL, -- 0.0 to 1.0
+    case_study_source TEXT, -- Reference to original case study
+    tags VARCHAR(255)[], -- ['digital marketing', 'customer acquisition', 'b2b']
+    embedding VECTOR(768), -- Vector embedding for semantic search (using pgvector extension)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AI Generated Strategies table (track what AI has generated)
+CREATE TABLE IF NOT EXISTS ai_generated_strategies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ogsm_component_id UUID REFERENCES ogsm_components(id) ON DELETE CASCADE,
+    user_prompt TEXT NOT NULL,
+    context JSONB, -- Original request context
+    generated_strategies JSONB NOT NULL, -- Array of generated strategy objects
+    selected_strategy_id UUID, -- Which one user chose
+    feedback VARCHAR(50), -- 'accepted', 'rejected', 'modified'
+    feedback_notes TEXT,
+    model_version VARCHAR(100), -- 'gemini-2.0-flash-exp'
+    generation_params JSONB, -- Temperature, top_k, etc.
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AI Strategy Feedback table (for continuous learning)
+CREATE TABLE IF NOT EXISTS ai_strategy_feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    generated_strategy_id UUID REFERENCES ai_generated_strategies(id) ON DELETE CASCADE,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    feedback_type VARCHAR(50), -- 'quality', 'relevance', 'actionability', 'originality'
+    comments TEXT,
+    outcome_achieved BOOLEAN, -- Did the strategy work?
+    outcome_data JSONB, -- Actual results if implemented
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_documents_upload_date ON documents(upload_date DESC);
 CREATE INDEX IF NOT EXISTS idx_ogsm_components_type ON ogsm_components(component_type);
@@ -438,3 +491,14 @@ CREATE INDEX IF NOT EXISTS idx_ogsm_templates_category ON ogsm_templates(categor
 CREATE INDEX IF NOT EXISTS idx_ogsm_templates_public ON ogsm_templates(is_public);
 CREATE INDEX IF NOT EXISTS idx_ogsm_templates_tags ON ogsm_templates USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_ogsm_component_versions_component ON ogsm_component_versions(component_id, version_number DESC);
+
+-- Indexes for AI Strategy Knowledge Base
+CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_industry ON strategy_knowledge(industry);
+CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_objective ON strategy_knowledge(objective_type);
+CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_tags ON strategy_knowledge USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_success ON strategy_knowledge(success_rate DESC);
+-- CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_embedding ON strategy_knowledge USING ivfflat (embedding vector_cosine_ops); -- Requires pgvector extension
+CREATE INDEX IF NOT EXISTS idx_ai_generated_strategies_component ON ai_generated_strategies(ogsm_component_id);
+CREATE INDEX IF NOT EXISTS idx_ai_generated_strategies_created ON ai_generated_strategies(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_strategy_feedback_generated ON ai_strategy_feedback(generated_strategy_id);
+CREATE INDEX IF NOT EXISTS idx_ai_strategy_feedback_rating ON ai_strategy_feedback(rating DESC);

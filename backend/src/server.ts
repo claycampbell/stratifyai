@@ -12,6 +12,7 @@ import ogsmTemplatesRouter from './routes/ogsmTemplates';
 import kpisRouter from './routes/kpis';
 import kpiEnhancementsRouter from './routes/kpiEnhancements';
 import aiRouter from './routes/ai';
+import aiStrategyRouter from './routes/aiStrategy';
 import dashboardRouter from './routes/dashboard';
 
 // Strategic Planning routes
@@ -57,6 +58,7 @@ app.use('/api/ogsm-templates', ogsmTemplatesRouter);
 app.use('/api/kpis', kpisRouter);
 app.use('/api/kpi-enhancements', kpiEnhancementsRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/ai-strategy', aiStrategyRouter);
 app.use('/api/dashboard', dashboardRouter);
 
 // Strategic Planning API Routes
@@ -83,6 +85,7 @@ app.get('/', (req: Request, res: Response) => {
       kpis: '/api/kpis',
       kpi_enhancements: '/api/kpi-enhancements',
       ai: '/api/ai',
+      ai_strategy: '/api/ai-strategy',
       dashboard: '/api/dashboard',
       // Strategic Planning
       risks: '/api/risks',

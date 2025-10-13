@@ -243,6 +243,25 @@ This document tracks missing features, enhancements, and future development prio
 
 ---
 
+## 17. Advanced AI Features
+
+| Feature | Priority | Status | Notes |
+|---------|----------|--------|-------|
+| AI Strategy Generator (RAG) | 🔴 High | In Progress | Generate strategies based on objectives using RAG and LLM |
+| Predictive KPI Forecasting | 🟡 Medium | Pending | ML-based time series prediction for KPIs |
+| Anomaly Detection & Smart Alerts | 🔴 High | Pending | Auto-detect unusual KPI patterns with ML |
+| Natural Language Querying | 🟡 Medium | Pending | Text-to-SQL for asking questions in plain English |
+| Multi-Agent AI System | 🟢 Low | Pending | AI board of directors with different personas |
+| Smart Document Intelligence | 🟡 Medium | Pending | Advanced document analysis beyond basic extraction |
+| Causal AI Impact Analysis | 🟢 Low | Pending | Understand cause-and-effect relationships |
+| Automated Report Generation | 🟡 Medium | Pending | AI writes comprehensive reports in company style |
+| Strategic Scenario Simulation | 🟡 Medium | Pending | Monte Carlo simulations for strategy testing |
+| AI Meeting Assistant | 🟢 Low | Pending | Real-time meeting intelligence and follow-ups |
+| Explainable AI Dashboard | 🟡 Medium | Pending | Show why AI made certain recommendations |
+| Reinforcement Learning for Resources | 🟢 Low | Pending | Optimal resource allocation through RL |
+
+---
+
 ## Implementation Phases
 
 ### Phase 1: Foundation & Core Improvements (High Priority)

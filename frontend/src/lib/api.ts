@@ -86,6 +86,44 @@ export const aiApi = {
   getRecommendations: () => api.post('/ai/recommendations'),
 };
 
+// AI Strategy API
+export const aiStrategyApi = {
+  generate: (context: {
+    objective: string;
+    industry?: string;
+    company_size?: string;
+    current_situation?: string;
+    constraints?: string;
+    resources?: string;
+    timeframe?: string;
+    num_strategies?: number;
+  }) => api.post('/ai-strategy/generate', context),
+  addToKnowledgeBase: (data: {
+    title: string;
+    description: string;
+    strategy_text: string;
+    industry?: string;
+    company_size?: string;
+    objective_type?: string;
+    success_metrics?: any;
+    outcomes?: any;
+    implementation_cost?: string;
+    timeframe?: string;
+    difficulty_level?: string;
+    success_rate?: number;
+    case_study_source?: string;
+    tags?: string[];
+  }) => api.post('/ai-strategy/knowledge-base', data),
+  submitFeedback: (data: {
+    generated_strategy_id: string;
+    rating: number;
+    feedback_type: 'implementation' | 'outcome' | 'general';
+    comments?: string;
+    outcome_achieved?: boolean;
+    outcome_data?: any;
+  }) => api.post('/ai-strategy/feedback', data),
+};
+
 // Dashboard API
 export const dashboardApi = {
   getAnalytics: () => api.get('/dashboard/analytics'),
