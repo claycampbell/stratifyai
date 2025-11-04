@@ -132,12 +132,32 @@ async function initializeDatabase() {
 
     // In production (dist), __dirname points to /app/dist
     // SQL file is at /app/src/database/init.sql
-    const sqlPath = process.env.NODE_ENV === 'production'
-      ? path.join(__dirname, '../src/database/init.sql')
-      : path.join(__dirname, 'database/init.sql');
-    const initSQL = fs.readFileSync(sqlPath, 'utf-8');
+    const dbPath = process.env.NODE_ENV === 'production'
+      ? path.join(__dirname, '../src/database')
+      : path.join(__dirname, 'database');
+
+    // Run init.sql first
+    const initSqlPath = path.join(dbPath, 'init.sql');
+    const initSQL = fs.readFileSync(initSqlPath, 'utf-8');
     await pool.query(initSQL);
-    console.log('Database initialized successfully');
+    console.log('Database schema initialized successfully');
+
+    // Run migrations in order
+    const migrationsPath = path.join(dbPath, 'migrations');
+    if (fs.existsSync(migrationsPath)) {
+      const migrationFiles = fs.readdirSync(migrationsPath)
+        .filter(f => f.endsWith('.sql') && !f.includes('rollback'))
+        .sort();
+
+      for (const file of migrationFiles) {
+        console.log(`Running migration: ${file}`);
+        const migrationSQL = fs.readFileSync(path.join(migrationsPath, file), 'utf-8');
+        await pool.query(migrationSQL);
+        console.log(`Migration ${file} completed`);
+      }
+    }
+
+    console.log('Database initialization completed successfully');
   } catch (error) {
     console.error('Error initializing database:', error);
     console.error('Database connection details:', {

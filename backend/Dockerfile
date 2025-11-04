@@ -31,7 +31,8 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 
 # Copy database SQL files (needed at runtime)
-COPY src/database ./src/database
+COPY src/database/init.sql ./src/database/init.sql
+COPY src/database/migrations ./src/database/migrations
 
 # Copy migration scripts
 COPY create-strategic-tables.sql ./
