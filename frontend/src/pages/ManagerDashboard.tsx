@@ -312,13 +312,13 @@ export default function ManagerDashboard() {
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
                       <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                        <span>{kpi.current.toFixed(1)} / {kpi.target.toFixed(1)}</span>
-                        <span className="font-medium">{Math.round(kpi.progress)}%</span>
+                        <span>{(kpi.current ?? 0).toFixed(1)} / {(kpi.target ?? 0).toFixed(1)}</span>
+                        <span className="font-medium">{Math.round(kpi.progress ?? 0)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-1.5">
                         <div
                           className={`h-1.5 rounded-full ${getStatusColor(kpi.status)}`}
-                          style={{ width: `${Math.min(kpi.progress, 100)}%` }}
+                          style={{ width: `${Math.min(kpi.progress ?? 0, 100)}%` }}
                         />
                       </div>
                     </div>
