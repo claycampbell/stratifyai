@@ -3,12 +3,32 @@ import { ogsmApi, kpisApi, dashboardApi } from '@/lib/api';
 import { TrendingUp, Target, AlertCircle, CheckCircle, BarChart3, Calendar, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import StrategicOverview from '@/components/StrategicOverview';
 import KPITrendsChart from '@/components/KPITrendsChart';
 import StrategicRoadmap from '@/components/StrategicRoadmap';
 import AlignmentMatrix from '@/components/AlignmentMatrix';
+import AthleticsDirectorDashboard from './AthleticsDirectorDashboard';
+import ManagerDashboard from './ManagerDashboard';
+import StaffDashboard from './StaffDashboard';
 
 export default function Dashboard() {
+  const { user } = useAuth();
+
+  // Route to role-specific dashboards
+  if (user?.role === 'athletics_director' || user?.role === 'super_admin') {
+    return <AthleticsDirectorDashboard />;
+  }
+
+  if (user?.role === 'manager' || user?.role === 'department_director') {
+    return <ManagerDashboard />;
+  }
+
+  if (user?.role === 'staff') {
+    return <StaffDashboard />;
+  }
+
+  // Default dashboard for other roles
   const [activeView, setActiveView] = useState<'overview' | 'trends' | 'roadmap' | 'alignment'>('overview');
 
   const { data: ogsmComponents } = useQuery({
