@@ -25,7 +25,7 @@ export default function StaffDashboard() {
     queryFn: () => kpisApi.getAll().then((res) => res.data),
   });
 
-  const { data: ogsmComponents } = useQuery({
+  useQuery({
     queryKey: ['ogsm'],
     queryFn: () => ogsmApi.getAll().then((res) => res.data),
   });

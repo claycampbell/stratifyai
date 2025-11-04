@@ -126,7 +126,7 @@ export default function AdminDashboard() {
     await handleUpdateUser(user.id, { is_active: !user.is_active });
   };
 
-  const handleImpersonate = async (userId: string, userEmail: string) => {
+  const handleImpersonate = async (userId: string) => {
     try {
       await impersonateUser(userId);
       // Navigate to home to see the impersonated user's view
@@ -357,7 +357,7 @@ export default function AdminDashboard() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleImpersonate(user.id, user.email)}
+                        onClick={() => handleImpersonate(user.id)}
                         className="text-purple-600 hover:text-purple-900"
                         title="View as this user"
                       >

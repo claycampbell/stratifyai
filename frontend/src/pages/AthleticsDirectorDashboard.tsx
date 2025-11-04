@@ -7,10 +7,6 @@ import {
   AlertCircle,
   CheckCircle,
   Users,
-  DollarSign,
-  Trophy,
-  Calendar,
-  Activity,
   ArrowUp,
   ArrowDown,
   Minus,
@@ -37,7 +33,7 @@ export default function AthleticsDirectorDashboard() {
     queryFn: () => kpisApi.getAll().then((res) => res.data),
   });
 
-  const { data: analytics } = useQuery({
+  useQuery({
     queryKey: ['dashboard-analytics'],
     queryFn: () => dashboardApi.getAnalytics().then((res) => res.data),
   });

@@ -34,7 +34,7 @@ const navigation = [
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, hasAnyPermission, isImpersonating, stopImpersonation, originalUser } = useAuth();
+  const { user, logout, hasAnyPermission, isImpersonating, stopImpersonation } = useAuth();
   const [triggerNotification, setTriggerNotification] = useState<(() => void) | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
