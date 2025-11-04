@@ -9,7 +9,8 @@ import {
   BarChart3,
   ArrowRight,
   Zap,
-  Users
+  Users,
+  Calendar
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -235,7 +236,7 @@ export default function ManagerDashboard() {
             </div>
 
             <div className="space-y-4">
-              {activeStrategies.map((strategy: { title: string; status: string; link: string; metric?: string; progress?: number }, index: number) => (
+              {activeStrategies.map((strategy: { title: string; description: string; status: string; link: string; metric?: string; progress?: number; dueDate?: string }, index: number) => (
                 <Link
                   key={index}
                   to={strategy.link}
@@ -293,7 +294,7 @@ export default function ManagerDashboard() {
             </div>
 
             <div className="space-y-3">
-              {myKPIsList.map((kpi: { name: string; value: string; change: string; status: string; link: string }, index: number) => (
+              {myKPIsList.map((kpi: { name: string; value: string; change: string; status: string; link: string; current?: number; target?: number; progress?: number }, index: number) => (
                 <Link
                   key={index}
                   to={kpi.link}
