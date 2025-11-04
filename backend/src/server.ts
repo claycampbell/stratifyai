@@ -6,6 +6,7 @@ import path from 'path';
 import pool from './config/database';
 
 // Import routes
+import authRouter from './routes/auth';
 import documentsRouter from './routes/documents';
 import ogsmRouter from './routes/ogsm';
 import ogsmTemplatesRouter from './routes/ogsmTemplates';
@@ -25,6 +26,7 @@ import dependenciesRouter from './routes/dependencies';
 
 // Admin routes
 import adminRouter from './routes/admin';
+import usersRouter from './routes/users';
 
 dotenv.config();
 
@@ -52,6 +54,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API Routes
+app.use('/api/auth', authRouter); // Public auth routes
 app.use('/api/documents', documentsRouter);
 app.use('/api/ogsm', ogsmRouter);
 app.use('/api/ogsm-templates', ogsmTemplatesRouter);
@@ -71,6 +74,7 @@ app.use('/api/dependencies', dependenciesRouter);
 
 // Admin API Routes
 app.use('/api/admin', adminRouter);
+app.use('/api/users', usersRouter);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -183,4 +187,10 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-startServer();
+// Only start server if this file is run directly (not imported for testing)
+if (require.main === module) {
+  startServer();
+}
+
+// Export app for testing
+export default app;
