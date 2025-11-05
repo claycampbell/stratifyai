@@ -281,4 +281,12 @@ export const dependenciesApi = {
   findCircular: () => api.post('/dependencies/analyze/circular'),
 };
 
+// User Preferences API
+export const preferencesApi = {
+  get: () => api.get('/users/preferences'),
+  update: (preferences: any) => api.put('/users/preferences', preferences),
+  updateKey: (key: string, value: any) => api.patch(`/users/preferences/${key}`, { value }),
+  reset: () => api.post('/users/preferences/reset'),
+};
+
 export default api;

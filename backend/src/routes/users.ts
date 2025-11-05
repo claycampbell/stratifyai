@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import pool from '../config/database';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
+import { UserPreferences, DEFAULT_USER_PREFERENCES } from '../types';
 
 const router = Router();
 
@@ -326,6 +327,137 @@ router.post('/stop-impersonation', authenticate, async (req: AuthRequest, res: R
   } catch (error) {
     console.error('Stop impersonation error:', error);
     res.status(500).json({ error: 'Failed to stop impersonation' });
+  }
+});
+
+// ============================================================================
+// USER PREFERENCES ENDPOINTS
+// ============================================================================
+
+// Get current user's preferences
+router.get('/preferences', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    const result = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Merge with defaults to ensure all preferences have values
+    const userPreferences = result.rows[0].preferences || {};
+    const preferences: UserPreferences = {
+      ...DEFAULT_USER_PREFERENCES,
+      ...userPreferences,
+    };
+
+    res.json(preferences);
+  } catch (error) {
+    console.error('Get preferences error:', error);
+    res.status(500).json({ error: 'Failed to get preferences' });
+  }
+});
+
+// Update current user's preferences (partial or full update)
+router.put('/preferences', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const updates: Partial<UserPreferences> = req.body;
+
+    // Get current preferences
+    const currentResult = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Merge current preferences with updates
+    const currentPreferences = currentResult.rows[0].preferences || {};
+    const newPreferences: UserPreferences = {
+      ...currentPreferences,
+      ...updates,
+    };
+
+    // Update in database
+    const result = await pool.query(
+      `UPDATE users
+       SET preferences = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING preferences`,
+      [JSON.stringify(newPreferences), userId]
+    );
+
+    res.json(result.rows[0].preferences);
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ error: 'Failed to update preferences' });
+  }
+});
+
+// Update a single preference key (convenience endpoint)
+router.patch('/preferences/:key', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { key } = req.params;
+    const { value } = req.body;
+
+    // Get current preferences
+    const currentResult = await pool.query(
+      'SELECT preferences FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update single key
+    const currentPreferences = currentResult.rows[0].preferences || {};
+    const newPreferences = {
+      ...currentPreferences,
+      [key]: value,
+    };
+
+    // Update in database
+    const result = await pool.query(
+      `UPDATE users
+       SET preferences = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING preferences`,
+      [JSON.stringify(newPreferences), userId]
+    );
+
+    res.json(result.rows[0].preferences);
+  } catch (error) {
+    console.error('Update preference key error:', error);
+    res.status(500).json({ error: 'Failed to update preference' });
+  }
+});
+
+// Reset preferences to defaults
+router.post('/preferences/reset', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    const result = await pool.query(
+      `UPDATE users
+       SET preferences = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING preferences`,
+      [JSON.stringify(DEFAULT_USER_PREFERENCES), userId]
+    );
+
+    res.json(result.rows[0].preferences);
+  } catch (error) {
+    console.error('Reset preferences error:', error);
+    res.status(500).json({ error: 'Failed to reset preferences' });
   }
 });
 

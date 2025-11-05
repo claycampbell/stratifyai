@@ -19,6 +19,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import AIChatBubble from './AIChatBubble';
 import KPIUpdateNotification from './KPIUpdateNotification';
+import UserPreferencesDebug from './UserPreferencesDebug';
 
 const navigation = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -229,6 +230,9 @@ export default function Layout() {
         checkInterval={7}
         onTrigger={(callback) => setTriggerNotification(() => callback)}
       />
+
+      {/* User Preferences Debug (dev mode) */}
+      {import.meta.env.DEV && <UserPreferencesDebug />}
     </div>
   );
 }

@@ -31,6 +31,9 @@ export interface KPI {
   unit?: string;
   frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual';
   status: 'on_track' | 'at_risk' | 'off_track';
+  ownership?: string;  // Primary owner (formerly "lead")
+  persons_responsible?: string[];  // Secondary team members
+  owner_email?: string;  // Email for notifications (keep for backward compatibility)
   created_at: Date;
   updated_at: Date;
 }
@@ -297,3 +300,35 @@ export interface OGSMComponentVersion {
   change_description?: string;
   created_at: Date;
 }
+
+// User Preferences - stored in users.preferences JSONB column
+export interface UserPreferences {
+  // UI Preferences
+  kpi_dashboard_view?: 'boxes' | 'list' | 'compact';
+  theme?: 'light' | 'dark' | 'system';
+  sidebar_collapsed?: boolean;
+  items_per_page?: number;
+
+  // Feature Preferences
+  default_kpi_category?: string;
+  notifications_enabled?: boolean;
+  email_notifications?: boolean;
+
+  // Dashboard Customization
+  dashboard_widgets?: string[];  // Widget IDs to display
+  dashboard_layout?: 'standard' | 'compact' | 'detailed';
+
+  // Extensible for future preferences
+  [key: string]: any;
+}
+
+// Default user preferences
+export const DEFAULT_USER_PREFERENCES: UserPreferences = {
+  kpi_dashboard_view: 'boxes',
+  theme: 'light',
+  sidebar_collapsed: false,
+  items_per_page: 20,
+  notifications_enabled: true,
+  email_notifications: true,
+  dashboard_layout: 'standard',
+};
