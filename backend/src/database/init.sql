@@ -62,11 +62,17 @@ CREATE TABLE IF NOT EXISTS kpi_history (
 CREATE TABLE IF NOT EXISTS chat_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID NOT NULL,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     role VARCHAR(20) NOT NULL, -- 'user' or 'assistant'
     message TEXT NOT NULL,
     context JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Indexes for chat history queries
+CREATE INDEX IF NOT EXISTS idx_chat_history_user_id ON chat_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_history_session_id ON chat_history(session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_history_user_session ON chat_history(user_id, session_id);
 
 -- Strategic Reports table
 CREATE TABLE IF NOT EXISTS strategic_reports (
@@ -404,7 +410,7 @@ CREATE TABLE IF NOT EXISTS strategy_knowledge (
     success_rate DECIMAL, -- 0.0 to 1.0
     case_study_source TEXT, -- Reference to original case study
     tags VARCHAR(255)[], -- ['digital marketing', 'customer acquisition', 'b2b']
-    embedding VECTOR(768), -- Vector embedding for semantic search (using pgvector extension)
+    -- embedding VECTOR(768), -- Vector embedding for semantic search (requires pgvector extension - disabled for Azure)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -497,7 +503,8 @@ CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_industry ON strategy_knowledge
 CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_objective ON strategy_knowledge(objective_type);
 CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_tags ON strategy_knowledge USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_success ON strategy_knowledge(success_rate DESC);
--- CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_embedding ON strategy_knowledge USING ivfflat (embedding vector_cosine_ops); -- Requires pgvector extension
+-- Vector embedding index disabled - requires pgvector extension not available on Azure PostgreSQL
+-- CREATE INDEX IF NOT EXISTS idx_strategy_knowledge_embedding ON strategy_knowledge USING ivfflat (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_ai_generated_strategies_component ON ai_generated_strategies(ogsm_component_id);
 CREATE INDEX IF NOT EXISTS idx_ai_generated_strategies_created ON ai_generated_strategies(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_strategy_feedback_generated ON ai_strategy_feedback(generated_strategy_id);

@@ -89,6 +89,10 @@ export const aiApi = {
   chat: (message: string, sessionId?: string, context?: any) =>
     api.post('/ai/chat', { message, session_id: sessionId, context }),
   getChatHistory: (sessionId: string) => api.get(`/ai/chat/${sessionId}`),
+  getChatSessions: () => api.get('/ai/chat-sessions'),
+  deleteSession: (sessionId: string) => api.delete(`/ai/chat/${sessionId}`),
+  searchChatHistory: (query?: string, startDate?: string, endDate?: string) =>
+    api.get('/ai/chat-search', { params: { query, start_date: startDate, end_date: endDate } }),
   analyze: (type: string) => api.post('/ai/analyze', { type }),
   generateReport: (reportType: string, title: string, timeframe?: string) =>
     api.post('/ai/reports/generate', { report_type: reportType, title, timeframe }),

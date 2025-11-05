@@ -2,25 +2,31 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
 import geminiService from '../services/geminiService';
+import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 // Chat with AI Chief Strategy Officer
-router.post('/chat', async (req: Request, res: Response) => {
+router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { message, session_id, context } = req.body;
+    const userId = req.user?.id;
 
     if (!message) {
       return res.status(400).json({ error: 'message is required' });
+    }
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
     }
 
     const sessionId = session_id || uuidv4();
 
     // Save user message
     await pool.query(
-      `INSERT INTO chat_history (session_id, role, message, context)
-       VALUES ($1, $2, $3, $4)`,
-      [sessionId, 'user', message, context ? JSON.stringify(context) : null]
+      `INSERT INTO chat_history (session_id, user_id, role, message, context)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [sessionId, userId, 'user', message, context ? JSON.stringify(context) : null]
     );
 
     // Get chat context from history
@@ -89,9 +95,9 @@ router.post('/chat', async (req: Request, res: Response) => {
 
     // Save AI response
     await pool.query(
-      `INSERT INTO chat_history (session_id, role, message)
-       VALUES ($1, $2, $3)`,
-      [sessionId, 'assistant', responseMessage]
+      `INSERT INTO chat_history (session_id, user_id, role, message)
+       VALUES ($1, $2, $3, $4)`,
+      [sessionId, userId, 'assistant', responseMessage]
     );
 
     const responseData = {
@@ -261,20 +267,131 @@ async function executeAction(action: any) {
   }
 }
 
-// Get chat history
-router.get('/chat/:session_id', async (req: Request, res: Response) => {
+// Get chat history for a specific session
+router.get('/chat/:session_id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { session_id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
 
     const result = await pool.query(
-      `SELECT * FROM chat_history WHERE session_id = $1 ORDER BY created_at ASC`,
-      [session_id]
+      `SELECT * FROM chat_history
+       WHERE session_id = $1 AND user_id = $2
+       ORDER BY created_at ASC`,
+      [session_id, userId]
     );
 
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching chat history:', error);
     res.status(500).json({ error: 'Failed to fetch chat history' });
+  }
+});
+
+// Get all chat sessions for the authenticated user
+router.get('/chat-sessions', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get all unique sessions with first/last message info
+    const result = await pool.query(
+      `SELECT
+        session_id,
+        MIN(created_at) as created_at,
+        MAX(created_at) as last_message_at,
+        COUNT(*) as message_count,
+        (SELECT message FROM chat_history ch2
+         WHERE ch2.session_id = ch.session_id AND ch2.role = 'user'
+         ORDER BY ch2.created_at ASC LIMIT 1) as first_user_message
+       FROM chat_history ch
+       WHERE user_id = $1
+       GROUP BY session_id
+       ORDER BY MAX(created_at) DESC`,
+      [userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching chat sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch chat sessions' });
+  }
+});
+
+// Delete a chat session (and all its messages)
+router.delete('/chat/:session_id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { session_id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const result = await pool.query(
+      `DELETE FROM chat_history
+       WHERE session_id = $1 AND user_id = $2
+       RETURNING *`,
+      [session_id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found or unauthorized' });
+    }
+
+    res.json({ success: true, deleted_count: result.rows.length });
+  } catch (error) {
+    console.error('Error deleting chat session:', error);
+    res.status(500).json({ error: 'Failed to delete chat session' });
+  }
+});
+
+// Search chat history
+router.get('/chat-search', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { query, start_date, end_date } = req.query;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    let sql = `SELECT * FROM chat_history WHERE user_id = $1`;
+    const params: any[] = [userId];
+    let paramCount = 2;
+
+    if (query) {
+      sql += ` AND message ILIKE $${paramCount}`;
+      params.push(`%${query}%`);
+      paramCount++;
+    }
+
+    if (start_date) {
+      sql += ` AND created_at >= $${paramCount}`;
+      params.push(start_date);
+      paramCount++;
+    }
+
+    if (end_date) {
+      sql += ` AND created_at <= $${paramCount}`;
+      params.push(end_date);
+      paramCount++;
+    }
+
+    sql += ` ORDER BY created_at DESC LIMIT 100`;
+
+    const result = await pool.query(sql, params);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error searching chat history:', error);
+    res.status(500).json({ error: 'Failed to search chat history' });
   }
 });
 

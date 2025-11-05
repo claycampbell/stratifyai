@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { aiApi } from '@/lib/api';
-import { Send, Bot, User, X, MessageSquare, Minimize2 } from 'lucide-react';
+import { Send, Bot, User, X, MessageSquare, Minimize2, History } from 'lucide-react';
+import ChatHistorySidebar from './ChatHistorySidebar';
 
 interface Message {
   id: string;
@@ -13,8 +14,9 @@ interface Message {
 export default function AIChatBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
   const [message, setMessage] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -56,6 +58,16 @@ export default function AIChatBubble() {
     }
   };
 
+  const handleSelectSession = (newSessionId: string) => {
+    setSessionId(newSessionId);
+    setShowHistory(false);
+  };
+
+  const handleNewChat = () => {
+    setSessionId(crypto.randomUUID());
+    setShowHistory(false);
+  };
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -90,6 +102,14 @@ export default function AIChatBubble() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="hover:bg-primary-700 p-1 rounded transition-colors"
+                aria-label="Chat history"
+                title="Chat history"
+              >
+                <History className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => setIsMinimized(true)}
                 className="hover:bg-primary-700 p-1 rounded transition-colors"
@@ -217,6 +237,15 @@ export default function AIChatBubble() {
           )}
         </button>
       )}
+
+      {/* Chat History Sidebar */}
+      <ChatHistorySidebar
+        currentSessionId={sessionId}
+        onSelectSession={handleSelectSession}
+        onNewChat={handleNewChat}
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+      />
     </>
   );
 }
