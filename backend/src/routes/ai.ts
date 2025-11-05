@@ -22,6 +22,29 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
 
     const sessionId = session_id || uuidv4();
 
+    // Check if this is a new session
+    const sessionCheck = await pool.query(
+      'SELECT id, title FROM chat_sessions WHERE id = $1',
+      [sessionId]
+    );
+
+    const isNewSession = sessionCheck.rows.length === 0;
+
+    if (isNewSession) {
+      // Create new session record (title will be generated after first AI response)
+      await pool.query(
+        `INSERT INTO chat_sessions (id, user_id, created_at, updated_at)
+         VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [sessionId, userId]
+      );
+    } else {
+      // Update session updated_at
+      await pool.query(
+        'UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [sessionId]
+      );
+    }
+
     // Save user message
     await pool.query(
       `INSERT INTO chat_history (session_id, user_id, role, message, context)
@@ -99,6 +122,23 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
        VALUES ($1, $2, $3, $4)`,
       [sessionId, userId, 'assistant', responseMessage]
     );
+
+    // Generate title for new sessions (async, don't wait for it)
+    if (isNewSession && !sessionCheck.rows[0]?.title) {
+      geminiService.generateChatTitle(message).then(async (title) => {
+        try {
+          await pool.query(
+            'UPDATE chat_sessions SET title = $1 WHERE id = $2',
+            [title, sessionId]
+          );
+          console.log(`[AI Chat] Generated title for session ${sessionId}: ${title}`);
+        } catch (error) {
+          console.error('[AI Chat] Error saving generated title:', error);
+        }
+      }).catch((error) => {
+        console.error('[AI Chat] Error generating title:', error);
+      });
+    }
 
     const responseData = {
       session_id: sessionId,
@@ -300,20 +340,20 @@ router.get('/chat-sessions', authenticate, async (req: AuthRequest, res: Respons
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // Get all unique sessions with first/last message info
+    // Get all sessions with metadata from chat_sessions table
     const result = await pool.query(
       `SELECT
-        session_id,
-        MIN(created_at) as created_at,
-        MAX(created_at) as last_message_at,
-        COUNT(*) as message_count,
+        cs.id as session_id,
+        cs.title,
+        cs.created_at,
+        cs.updated_at as last_message_at,
+        (SELECT COUNT(*) FROM chat_history ch WHERE ch.session_id = cs.id) as message_count,
         (SELECT message FROM chat_history ch2
-         WHERE ch2.session_id = ch.session_id AND ch2.role = 'user'
+         WHERE ch2.session_id = cs.id AND ch2.role = 'user'
          ORDER BY ch2.created_at ASC LIMIT 1) as first_user_message
-       FROM chat_history ch
-       WHERE user_id = $1
-       GROUP BY session_id
-       ORDER BY MAX(created_at) DESC`,
+       FROM chat_sessions cs
+       WHERE cs.user_id = $1
+       ORDER BY cs.updated_at DESC`,
       [userId]
     );
 
@@ -324,7 +364,7 @@ router.get('/chat-sessions', authenticate, async (req: AuthRequest, res: Respons
   }
 });
 
-// Delete a chat session (and all its messages)
+// Delete a chat session (and all its messages via cascade)
 router.delete('/chat/:session_id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { session_id } = req.params;
@@ -334,9 +374,10 @@ router.delete('/chat/:session_id', authenticate, async (req: AuthRequest, res: R
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
+    // Delete from chat_sessions, which will cascade to chat_history
     const result = await pool.query(
-      `DELETE FROM chat_history
-       WHERE session_id = $1 AND user_id = $2
+      `DELETE FROM chat_sessions
+       WHERE id = $1 AND user_id = $2
        RETURNING *`,
       [session_id, userId]
     );
@@ -345,7 +386,7 @@ router.delete('/chat/:session_id', authenticate, async (req: AuthRequest, res: R
       return res.status(404).json({ error: 'Session not found or unauthorized' });
     }
 
-    res.json({ success: true, deleted_count: result.rows.length });
+    res.json({ success: true });
   } catch (error) {
     console.error('Error deleting chat session:', error);
     res.status(500).json({ error: 'Failed to delete chat session' });

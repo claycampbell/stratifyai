@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 
 interface ChatSession {
   session_id: string;
+  title?: string;
   created_at: string;
   last_message_at: string;
   message_count: number;
@@ -73,6 +74,10 @@ export default function ChatHistorySidebar({
   );
 
   const getSessionTitle = (session: ChatSession) => {
+    // Prefer AI-generated title, fall back to truncated first message
+    if (session.title) {
+      return session.title;
+    }
     if (session.first_user_message) {
       return session.first_user_message.length > 40
         ? session.first_user_message.substring(0, 40) + '...'
