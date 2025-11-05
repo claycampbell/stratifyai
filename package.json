@@ -1,0 +1,35 @@
+{
+  "name": "stratifyai",
+  "version": "1.0.0",
+  "description": "An intelligent strategic planning and management platform powered by Google Gemini AI. This system helps organizations manage their strategic plans using the OGSM (Objectives, Goals, Strategies, Measures) framework with AI-powered insights and recommendations.",
+  "main": "index.js",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "typecheck": "npm run typecheck:frontend && npm run typecheck:backend",
+    "typecheck:frontend": "cd frontend && npx tsc --noEmit",
+    "typecheck:backend": "cd backend && npx tsc --noEmit",
+    "pre-commit": "npm run typecheck",
+    "pre-push": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/claycampbell/stratifyai.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/claycampbell/stratifyai/issues"
+  },
+  "homepage": "https://github.com/claycampbell/stratifyai#readme",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

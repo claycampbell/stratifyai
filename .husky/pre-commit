@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running type checks before commit..."
+npm run typecheck || {
+  echo "❌ TypeScript type check failed. Please fix the errors before committing."
+  exit 1
+}
+
+echo "✅ Pre-commit checks passed!"
