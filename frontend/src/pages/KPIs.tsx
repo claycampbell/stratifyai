@@ -1,9 +1,11 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpisApi } from '@/lib/api';
-import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2, Filter, X, Sparkles } from 'lucide-react';
+import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows } from 'lucide-react';
 import KPIDetailModal from '@/components/KPIDetailModal';
 import KPITemplatesBrowser from '@/components/KPITemplatesBrowser';
+import KPIViews from '@/components/KPIViews';
+import { usePreference } from '@/contexts/UserPreferencesContext';
 
 const statusColors = {
   on_track: 'bg-green-100 text-green-800',
@@ -18,6 +20,7 @@ const statusIcons = {
 };
 
 export default function KPIs() {
+  const [viewMode, setViewMode] = usePreference('kpi_dashboard_view');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedKpiId, setSelectedKpiId] = useState<string | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
@@ -38,6 +41,8 @@ export default function KPIs() {
     unit: '',
     frequency: 'monthly',
     status: 'on_track',
+    ownership: '',
+    persons_responsible: [] as string[],
   });
 
   const queryClient = useQueryClient();
@@ -47,19 +52,19 @@ export default function KPIs() {
     queryFn: () => kpisApi.getAll().then((res) => res.data),
   });
 
-  // Extract unique leads/persons from KPI descriptions
+  // Extract unique ownership/persons from KPIs
   const availablePersons = useMemo(() => {
     if (!kpis) return [];
     const persons = new Set<string>();
     kpis.forEach((kpi: any) => {
-      const descParts = kpi.description ? kpi.description.split(' | ') : [];
-      descParts.forEach((part: string) => {
-        const [key, ...valueParts] = part.split(': ');
-        if (key === 'Lead' && valueParts.length > 0) {
-          const lead = valueParts.join(': ').trim();
-          if (lead) persons.add(lead);
-        }
-      });
+      // Use new ownership field directly
+      if (kpi.ownership) {
+        persons.add(kpi.ownership);
+      }
+      // Also include persons_responsible
+      if (kpi.persons_responsible && Array.isArray(kpi.persons_responsible)) {
+        kpi.persons_responsible.forEach((person: string) => persons.add(person));
+      }
     });
     return Array.from(persons).sort();
   }, [kpis]);
@@ -74,17 +79,14 @@ export default function KPIs() {
         return false;
       }
 
-      // Person/Lead filter
+      // Person/Ownership filter
       if (personFilter !== 'all') {
-        const descParts = kpi.description ? kpi.description.split(' | ') : [];
-        let kpiLead = '';
-        descParts.forEach((part: string) => {
-          const [key, ...valueParts] = part.split(': ');
-          if (key === 'Lead' && valueParts.length > 0) {
-            kpiLead = valueParts.join(': ').trim();
-          }
-        });
-        if (kpiLead !== personFilter) {
+        // Check ownership or persons_responsible
+        const hasMatch =
+          kpi.ownership === personFilter ||
+          (kpi.persons_responsible && kpi.persons_responsible.includes(personFilter));
+
+        if (!hasMatch) {
           return false;
         }
       }
@@ -106,6 +108,8 @@ export default function KPIs() {
         unit: '',
         frequency: 'monthly',
         status: 'on_track',
+        ownership: '',
+        persons_responsible: [],
       });
     },
   });
@@ -237,6 +241,43 @@ export default function KPIs() {
           <p className="mt-2 text-gray-600">Track and manage your KPIs</p>
         </div>
         <div className="flex gap-3">
+          {/* View Mode Switcher */}
+          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+            <button
+              onClick={() => setViewMode('boxes')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'boxes'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="Box View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="List View"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('compact')}
+              className={`p-2 rounded transition-colors ${
+                viewMode === 'compact'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="Compact View"
+            >
+              <Rows className="h-4 w-4" />
+            </button>
+          </div>
+
           {kpis && kpis.length > 0 && (
             <button
               onClick={handleDeleteAll}
@@ -302,15 +343,15 @@ export default function KPIs() {
             </select>
           </div>
 
-          {/* Person/Lead Filter */}
+          {/* Person/Ownership Filter */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600">Lead:</label>
+            <label className="text-sm font-medium text-gray-600">Ownership:</label>
             <select
               value={personFilter}
               onChange={(e) => setPersonFilter(e.target.value)}
               className="text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 py-1.5 px-3"
             >
-              <option value="all">All Leads</option>
+              <option value="all">All Owners</option>
               {availablePersons.map((person) => (
                 <option key={person} value={person}>
                   {person}
@@ -336,7 +377,7 @@ export default function KPIs() {
                 )}
                 {personFilter !== 'all' && (
                   <span className="inline-flex items-center px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                    Lead: {personFilter}
+                    Owner: {personFilter}
                     <button
                       onClick={() => setPersonFilter('all')}
                       className="ml-1 hover:text-green-900"
@@ -463,6 +504,34 @@ export default function KPIs() {
                 <option value="annual">Annual</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ownership (Primary)
+              </label>
+              <input
+                type="text"
+                value={newKPI.ownership}
+                onChange={(e) => setNewKPI({ ...newKPI, ownership: e.target.value })}
+                className="input"
+                placeholder="Primary person responsible"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Persons Responsible (Secondary)
+              </label>
+              <input
+                type="text"
+                value={newKPI.persons_responsible.join(', ')}
+                onChange={(e) => setNewKPI({
+                  ...newKPI,
+                  persons_responsible: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                })}
+                className="input"
+                placeholder="Enter names separated by commas"
+              />
+              <p className="text-xs text-gray-500 mt-1">Separate multiple names with commas</p>
+            </div>
             <div className="md:col-span-2 flex space-x-3">
               <button
                 onClick={handleCreate}
@@ -479,101 +548,14 @@ export default function KPIs() {
         </div>
       )}
 
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {isLoading ? (
-          <p className="text-gray-600">Loading KPIs...</p>
-        ) : filteredKpis && filteredKpis.length > 0 ? (
-          filteredKpis.map((kpi: any) => {
-            const StatusIcon = statusIcons[kpi.status as keyof typeof statusIcons] || AlertCircle;
-
-            // Parse description to extract fields
-            const descParts = kpi.description ? kpi.description.split(' | ') : [];
-            const fields: Record<string, string> = {};
-            descParts.forEach((part: string) => {
-              const [key, ...valueParts] = part.split(': ');
-              if (key && valueParts.length > 0) {
-                fields[key] = valueParts.join(': ');
-              }
-            });
-
-            return (
-              <div
-                key={kpi.id}
-                className="card cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => setSelectedKpiId(kpi.id)}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-1">{kpi.name}</h3>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                        statusColors[kpi.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {StatusIcon && <StatusIcon className="h-3 w-3 mr-1" />}
-                      {kpi.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => handleDelete(e, kpi.id)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Delete KPI"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                    <TrendingUp className="h-5 w-5 text-gray-400" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {fields.Lead && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Lead</span>
-                      <span className="font-semibold">{fields.Lead}</span>
-                    </div>
-                  )}
-                  {fields.Goal && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Goal</span>
-                      <span className="font-semibold">{fields.Goal}</span>
-                    </div>
-                  )}
-                  {fields.Start && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Start Date</span>
-                      <span className="font-semibold">{fields.Start}</span>
-                    </div>
-                  )}
-                  {fields.End && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">End Date</span>
-                      <span className="font-semibold">{fields.End}</span>
-                    </div>
-                  )}
-                  {fields.Notes && (
-                    <div className="pt-2 mt-2 border-t border-gray-200">
-                      <span className="text-xs text-gray-600 font-medium">Notes:</span>
-                      <p className="text-sm text-gray-700 mt-1">{fields.Notes}</p>
-                    </div>
-                  )}
-
-                  <div className="pt-2 mt-2 border-t border-gray-200">
-                    <span className="text-xs text-gray-500 capitalize">
-                      Frequency: {kpi.frequency}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <p className="text-gray-600">No KPIs found. Create your first KPI!</p>
-          </div>
-        )}
-      </div>
+      {/* KPIs Display - Supports Boxes, List, and Compact views */}
+      <KPIViews
+        kpis={filteredKpis || []}
+        isLoading={isLoading}
+        viewMode={viewMode || 'boxes'}
+        onKPIClick={(id) => setSelectedKpiId(id)}
+        onKPIDelete={handleDelete}
+      />
 
       {/* KPI Templates Browser */}
       {showTemplates && <KPITemplatesBrowser onClose={() => setShowTemplates(false)} />}
