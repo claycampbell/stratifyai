@@ -1,23 +1,11 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpisApi } from '@/lib/api';
-import { Plus, TrendingUp, AlertCircle, CheckCircle, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows } from 'lucide-react';
+import { Plus, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows } from 'lucide-react';
 import KPIDetailModal from '@/components/KPIDetailModal';
 import KPITemplatesBrowser from '@/components/KPITemplatesBrowser';
 import KPIViews from '@/components/KPIViews';
 import { usePreference } from '@/contexts/UserPreferencesContext';
-
-const statusColors = {
-  on_track: 'bg-green-100 text-green-800',
-  at_risk: 'bg-yellow-100 text-yellow-800',
-  off_track: 'bg-red-100 text-red-800',
-};
-
-const statusIcons = {
-  on_track: CheckCircle,
-  at_risk: AlertCircle,
-  off_track: AlertCircle,
-};
 
 export default function KPIs() {
   const [viewMode, setViewMode] = usePreference('kpi_dashboard_view');
