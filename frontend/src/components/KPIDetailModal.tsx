@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { kpisApi } from '@/lib/api';
+import { kpisApi, kpiCategoriesApi } from '@/lib/api';
+import { KPICategory } from '@/types';
 import {
   X,
   TrendingUp,
@@ -72,6 +73,12 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
     enabled: activeTab === 'actions',
   });
 
+  // Fetch categories for selector
+  const { data: categories } = useQuery<KPICategory[]>({
+    queryKey: ['kpi-categories'],
+    queryFn: () => kpiCategoriesApi.getAll().then((res) => res.data),
+  });
+
   // Update KPI mutation
   const updateMutation = useMutation({
     mutationFn: (data: any) => kpisApi.update(kpiId, data),
@@ -121,6 +128,9 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
       unit: kpi.unit,
       frequency: kpi.frequency,
       status: kpi.status,
+      ownership: kpi.ownership || '',
+      persons_responsible: kpi.persons_responsible || [],
+      category_id: kpi.category_id || '',
     });
     setIsEditing(true);
   };
@@ -318,7 +328,128 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                     rows={3}
                   />
                 ) : (
-                  <p className="text-gray-700">{kpi.description || 'No description available'}</p>
+                  <div className="text-gray-700">
+                    {kpi.description ? (
+                      (() => {
+                        // Parse description by multiple delimiters: pipes, newlines, or bullet points
+                        const items = kpi.description
+                          .split(/\s*\|\s*|\n+|•\s*/)
+                          .map((item: string) => item.trim())
+                          .filter((item: string) => item.length > 0);
+
+                        // If only one item or no delimiters found, display as plain text
+                        if (items.length === 1) {
+                          return <p>{kpi.description}</p>;
+                        }
+
+                        // Display each item in its own row
+                        return (
+                          <div className="space-y-2">
+                            {items.map((item: string, idx: number) => (
+                              <div key={idx} className="flex items-start">
+                                <span className="text-blue-500 mr-2 mt-1">•</span>
+                                <p className="flex-1">{item}</p>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="text-gray-500 italic">No description available</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Category & Metadata */}
+              {isEditing && (
+                <div className="card">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Category</h3>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      KPI Category
+                    </label>
+                    <select
+                      value={editedKPI.category_id || ''}
+                      onChange={(e) =>
+                        setEditedKPI({ ...editedKPI, category_id: e.target.value || null })
+                      }
+                      className="w-full input"
+                    >
+                      <option value="">Uncategorized</option>
+                      {categories?.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Assign this KPI to a category for better organization
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Ownership & Team */}
+              <div className="card">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Ownership & Team</h3>
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Ownership (Primary)
+                      </label>
+                      <input
+                        type="text"
+                        value={editedKPI.ownership || ''}
+                        onChange={(e) => setEditedKPI({ ...editedKPI, ownership: e.target.value })}
+                        className="w-full input"
+                        placeholder="Primary person responsible"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Persons Responsible (Secondary)
+                      </label>
+                      <input
+                        type="text"
+                        value={Array.isArray(editedKPI.persons_responsible) ? editedKPI.persons_responsible.join(', ') : ''}
+                        onChange={(e) =>
+                          setEditedKPI({
+                            ...editedKPI,
+                            persons_responsible: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+                          })
+                        }
+                        className="w-full input"
+                        placeholder="Enter names separated by commas"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Separate multiple names with commas</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {kpi.ownership && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">Primary Owner:</span>
+                        <p className="text-gray-900 mt-1">{kpi.ownership}</p>
+                      </div>
+                    )}
+                    {kpi.persons_responsible && kpi.persons_responsible.length > 0 && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">Team Members:</span>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {kpi.persons_responsible.map((person: string, idx: number) => (
+                            <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                              {person}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {!kpi.ownership && (!kpi.persons_responsible || kpi.persons_responsible.length === 0) && (
+                      <p className="text-gray-500 text-sm">No ownership information available</p>
+                    )}
+                  </div>
                 )}
               </div>
 

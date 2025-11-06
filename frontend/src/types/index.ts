@@ -21,9 +21,22 @@ export interface OGSMComponent {
   updated_at: string;
 }
 
+export interface KPICategory {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;  // Hex color for UI theming (e.g., '#3B82F6')
+  icon?: string;  // Icon name (e.g., 'TrendingUp', 'DollarSign')
+  order_index: number;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface KPI {
   id: string;
   ogsm_component_id?: string;
+  category_id?: string;  // Reference to KPICategory
   name: string;
   description?: string;
   target_value?: number;

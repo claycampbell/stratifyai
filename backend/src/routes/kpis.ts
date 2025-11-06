@@ -64,8 +64,8 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
       }
 
       try {
-        // Extract data from CSV columns
-        const lead = row['Lead'] || row['lead'] || '';
+        // Extract data from CSV columns (support both old "Lead" and new "Ownership" terminology)
+        const ownership = row['Ownership'] || row['ownership'] || row['Lead'] || row['lead'] || '';
         const goal = row['Goal'] || row['goal'] || '';
         const status = row['Status'] || row['status'] || 'on_track';
         const startDate = row['Start Date'] || row['start_date'] || row['Start Date '];
@@ -105,7 +105,6 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
 
         // Build description from available fields
         const descriptionParts: string[] = [];
-        if (lead) descriptionParts.push(`Lead: ${lead}`);
         if (goal) descriptionParts.push(`Goal: ${goal}`);
         if (notes) descriptionParts.push(`Notes: ${notes}`);
         if (startDate) descriptionParts.push(`Start: ${startDate}`);
@@ -113,10 +112,10 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
 
         const description = descriptionParts.join(' | ');
 
-        // Insert KPI into database
+        // Insert KPI into database with new ownership field
         const result = await pool.query(
-          `INSERT INTO kpis (name, description, target_value, current_value, unit, frequency, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+          `INSERT INTO kpis (name, description, target_value, current_value, unit, frequency, status, ownership)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
           [
             kpiName,
             description || '',
@@ -125,6 +124,7 @@ router.post('/import', upload.single('file'), async (req: Request, res: Response
             unit || '',
             'quarterly', // Default frequency
             kpiStatus,
+            ownership || null,
           ]
         );
 
@@ -173,6 +173,7 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const {
       ogsm_component_id,
+      category_id,
       name,
       description,
       target_value,
@@ -180,6 +181,8 @@ router.post('/', async (req: Request, res: Response) => {
       unit,
       frequency,
       status,
+      ownership,
+      persons_responsible,
     } = req.body;
 
     if (!name) {
@@ -187,10 +190,11 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO kpis (ogsm_component_id, name, description, target_value, current_value, unit, frequency, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO kpis (ogsm_component_id, category_id, name, description, target_value, current_value, unit, frequency, status, ownership, persons_responsible)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
         ogsm_component_id || null,
+        category_id || null,
         name,
         description || '',
         target_value || null,
@@ -198,6 +202,8 @@ router.post('/', async (req: Request, res: Response) => {
         unit || '',
         frequency || 'monthly',
         status || 'on_track',
+        ownership || null,
+        persons_responsible || null,
       ]
     );
 
@@ -212,7 +218,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, target_value, current_value, unit, frequency, status, owner_email, tags, validation_rules } = req.body;
+    const { name, description, target_value, current_value, unit, frequency, status, owner_email, tags, validation_rules, ownership, persons_responsible, category_id } = req.body;
 
     // Validate value if validation rules are provided
     if (current_value !== undefined && validation_rules) {
@@ -234,10 +240,13 @@ router.put('/:id', async (req: Request, res: Response) => {
            owner_email = COALESCE($8, owner_email),
            tags = COALESCE($9, tags),
            validation_rules = COALESCE($10, validation_rules),
+           ownership = COALESCE($11, ownership),
+           persons_responsible = COALESCE($12, persons_responsible),
+           category_id = COALESCE($13, category_id),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $11
+       WHERE id = $14
        RETURNING *`,
-      [name, description, target_value, current_value, unit, frequency, status, owner_email, tags, validation_rules ? JSON.stringify(validation_rules) : null, id]
+      [name, description, target_value, current_value, unit, frequency, status, owner_email, tags, validation_rules ? JSON.stringify(validation_rules) : null, ownership, persons_responsible, category_id, id]
     );
 
     if (result.rows.length === 0) {

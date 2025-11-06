@@ -1,10 +1,13 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { kpisApi } from '@/lib/api';
-import { Plus, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows } from 'lucide-react';
+import { kpisApi, kpiCategoriesApi } from '@/lib/api';
+import { KPICategory } from '@/types';
+import { Plus, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows, Settings } from 'lucide-react';
 import KPIDetailModal from '@/components/KPIDetailModal';
 import KPITemplatesBrowser from '@/components/KPITemplatesBrowser';
 import KPIViews from '@/components/KPIViews';
+import KPICategoryTabs from '@/components/KPICategoryTabs';
+import CategoryManagementModal from '@/components/CategoryManagementModal';
 import { usePreference } from '@/contexts/UserPreferencesContext';
 
 export default function KPIs() {
@@ -13,6 +16,8 @@ export default function KPIs() {
   const [selectedKpiId, setSelectedKpiId] = useState<string | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [personFilter, setPersonFilter] = useState<string>('all');
   const [importStatus, setImportStatus] = useState<{
@@ -31,6 +36,7 @@ export default function KPIs() {
     status: 'on_track',
     ownership: '',
     persons_responsible: [] as string[],
+    category_id: '',
   });
 
   const queryClient = useQueryClient();
@@ -38,6 +44,12 @@ export default function KPIs() {
   const { data: kpis, isLoading } = useQuery({
     queryKey: ['kpis'],
     queryFn: () => kpisApi.getAll().then((res) => res.data),
+  });
+
+  // Fetch categories for selector
+  const { data: categories } = useQuery<KPICategory[]>({
+    queryKey: ['kpi-categories'],
+    queryFn: () => kpiCategoriesApi.getAll().then((res) => res.data),
   });
 
   // Extract unique ownership/persons from KPIs
@@ -62,6 +74,13 @@ export default function KPIs() {
     if (!kpis) return [];
 
     return kpis.filter((kpi: any) => {
+      // Category filter
+      if (categoryFilter !== null) {
+        if (kpi.category_id !== categoryFilter) {
+          return false;
+        }
+      }
+
       // Status filter
       if (statusFilter !== 'all' && kpi.status !== statusFilter) {
         return false;
@@ -81,7 +100,7 @@ export default function KPIs() {
 
       return true;
     });
-  }, [kpis, statusFilter, personFilter]);
+  }, [kpis, categoryFilter, statusFilter, personFilter]);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => kpisApi.create(data),
@@ -98,6 +117,7 @@ export default function KPIs() {
         status: 'on_track',
         ownership: '',
         persons_responsible: [],
+        category_id: '',
       });
     },
   });
@@ -277,6 +297,13 @@ export default function KPIs() {
             </button>
           )}
           <button
+            onClick={() => setShowCategoryManagement(true)}
+            className="btn btn-secondary flex items-center"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Manage Categories
+          </button>
+          <button
             onClick={() => setShowTemplates(true)}
             className="btn btn-secondary flex items-center"
           >
@@ -307,6 +334,15 @@ export default function KPIs() {
           />
         </div>
       </div>
+
+      {/* Category Tabs */}
+      {kpis && kpis.length > 0 && (
+        <KPICategoryTabs
+          selectedCategoryId={categoryFilter}
+          onSelectCategory={setCategoryFilter}
+          kpis={kpis}
+        />
+      )}
 
       {/* Filters Section */}
       <div className="card">
@@ -349,7 +385,7 @@ export default function KPIs() {
           </div>
 
           {/* Active Filters Display & Clear */}
-          {(statusFilter !== 'all' || personFilter !== 'all') && (
+          {(statusFilter !== 'all' || personFilter !== 'all' || categoryFilter !== null) && (
             <>
               <div className="flex items-center gap-2">
                 {statusFilter !== 'all' && (
@@ -379,6 +415,7 @@ export default function KPIs() {
                 onClick={() => {
                   setStatusFilter('all');
                   setPersonFilter('all');
+                  setCategoryFilter(null);
                 }}
                 className="text-sm text-gray-600 hover:text-gray-900 underline"
               >
@@ -388,7 +425,7 @@ export default function KPIs() {
           )}
 
           {/* Results Count */}
-          <div className={`text-sm text-gray-600 ${statusFilter === 'all' && personFilter === 'all' ? 'ml-auto' : ''}`}>
+          <div className={`text-sm text-gray-600 ${statusFilter === 'all' && personFilter === 'all' && categoryFilter === null ? 'ml-auto' : ''}`}>
             Showing {filteredKpis?.length || 0} of {kpis?.length || 0} KPIs
           </div>
         </div>
@@ -493,6 +530,21 @@ export default function KPIs() {
               </select>
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select
+                value={newKPI.category_id}
+                onChange={(e) => setNewKPI({ ...newKPI, category_id: e.target.value })}
+                className="input"
+              >
+                <option value="">Uncategorized</option>
+                {categories?.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Ownership (Primary)
               </label>
@@ -581,6 +633,12 @@ export default function KPIs() {
           </div>
         </div>
       )}
+
+      {/* Category Management Modal */}
+      <CategoryManagementModal
+        isOpen={showCategoryManagement}
+        onClose={() => setShowCategoryManagement(false)}
+      />
     </div>
   );
 }

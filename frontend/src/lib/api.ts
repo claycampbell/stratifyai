@@ -84,6 +84,18 @@ export const kpisApi = {
   },
 };
 
+// KPI Categories API
+export const kpiCategoriesApi = {
+  getAll: () => api.get('/kpi-categories'),
+  getById: (id: string) => api.get(`/kpi-categories/${id}`),
+  create: (data: { name: string; description?: string; color?: string; icon?: string; order_index?: number }) =>
+    api.post('/kpi-categories', data),
+  update: (id: string, data: { name?: string; description?: string; color?: string; icon?: string; order_index?: number }) =>
+    api.put(`/kpi-categories/${id}`, data),
+  delete: (id: string) => api.delete(`/kpi-categories/${id}`),
+  getKPIs: (id: string) => api.get(`/kpi-categories/${id}/kpis`),
+};
+
 // AI API
 export const aiApi = {
   chat: (message: string, sessionId?: string, context?: any) =>
