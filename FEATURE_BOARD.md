@@ -1,6 +1,6 @@
 # Stratify AI - Feature Board
 
-**Last Updated**: 2025-11-03
+**Last Updated**: 2025-11-07
 **Source**: Customer Feedback (Chris King & Stephen's Notes)
 
 ## Feature Status Legend
@@ -145,6 +145,45 @@
 - [ ] Export conversation feature
 
 **Estimated Hours**: 10-12 hours
+
+---
+
+### P0-006: RMU Athletics Philosophy & Non-Negotiables Integration 🔴
+**Priority**: Critical | **Effort**: High | **Impact**: Critical
+**Status**: Not Started
+
+**Description**: Integrate RMU Athletics' foundational philosophy (mission, vision, values, principles) and Director of Athletics' Non-Negotiables into the CSO BOT's decision-making framework to ensure all AI-generated recommendations are culturally aligned and operationally appropriate.
+
+**Affected Components**:
+- Database: New `philosophy_documents`, `non_negotiables`, `decision_hierarchy`, `ai_recommendation_validations` tables
+- Backend: PhilosophyService, enhanced GeminiService with validation
+- Frontend: Philosophy management UI, enhanced chat with alignment display
+
+**Technical Spec**: See [specs/P0-006-athletics-philosophy.md](specs/P0-006-athletics-philosophy.md)
+
+**Key Features**:
+- **Foundational Training**: Train CSO BOT on mission, vision, core values, guiding principles, operating principles, and themes
+- **Hard Constraints**: Implement 12 Non-Negotiables as absolute validation filters
+- **Priority Logic**: Enforce decision-making hierarchy (University → Department → Individual)
+- **Transparency**: AI recommendations cite relevant values/principles
+- **Conflict Resolution**: Handle competing principles intelligently
+- **Auto-Reject**: Automatically reject recommendations violating hard constraints
+
+**Acceptance Criteria**:
+- [ ] Database schema with all philosophy tables created
+- [ ] Seed data for all RMU philosophy documents loaded
+- [ ] Philosophy context automatically included in all AI prompts
+- [ ] Non-negotiables implemented as validation filters
+- [ ] Auto-reject mechanism for hard constraint violations
+- [ ] Decision hierarchy enforced in recommendations
+- [ ] AI responses cite relevant values/principles
+- [ ] Admin UI for viewing and managing philosophy documents
+- [ ] Validation status displayed in chat responses
+- [ ] Philosophy alignment metrics in recommendations
+
+**Estimated Hours**: 80-120 hours
+
+**Related Feedback**: [USER_FEEDBACK.md - FB-001](USER_FEEDBACK.md#fb-001)
 
 ---
 
@@ -478,14 +517,14 @@
 
 ## Summary Statistics
 
-**Total Features**: 32
-**Phase 0**: 5 features (50-66 hours)
+**Total Features**: 33
+**Phase 0**: 6 features (130-186 hours)
 **Phase 1**: 6 features (320-466 hours)
 **Phase 2**: 6 features (340-450 hours)
 **Phase 3**: 8 features (356-534 hours)
 
-**Total Estimated Hours**: 1,066-1,516 hours
-**Total Estimated Months**: 6-9 months (with 1-2 developers)
+**Total Estimated Hours**: 1,146-1,636 hours
+**Total Estimated Months**: 6-10 months (with 1-2 developers)
 
 ---
 
