@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import PhilosophyQuickReference from '@/components/PhilosophyQuickReference';
+import RecentValidations from '@/components/RecentValidations';
+import AlignmentScoreWidget from '@/components/AlignmentScoreWidget';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -252,6 +255,13 @@ export default function AthleticsDirectorDashboard() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Philosophy Widgets Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <PhilosophyQuickReference />
+        <RecentValidations />
+        <AlignmentScoreWidget />
       </div>
 
       {/* Main Content Grid */}
