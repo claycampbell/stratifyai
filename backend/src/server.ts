@@ -25,6 +25,11 @@ import budgetsRouter from './routes/budgets';
 import resourcesRouter from './routes/resources';
 import dependenciesRouter from './routes/dependencies';
 
+// Staff Plans routes
+import staffPlansRouter from './routes/staffPlans';
+import planItemsRouter from './routes/planItems';
+import planLinksRouter from './routes/planLinks';
+
 // Admin routes
 import adminRouter from './routes/admin';
 import usersRouter from './routes/users';
@@ -74,6 +79,11 @@ app.use('/api/budgets', budgetsRouter);
 app.use('/api/resources', resourcesRouter);
 app.use('/api/dependencies', dependenciesRouter);
 
+// Staff Plans API Routes
+app.use('/api/staff-plans', staffPlansRouter);
+app.use('/api/plan-items', planItemsRouter);
+app.use('/api/plan-links', planLinksRouter);
+
 // Admin API Routes
 app.use('/api/admin', adminRouter);
 app.use('/api/users', usersRouter);
@@ -100,6 +110,10 @@ app.get('/', (req: Request, res: Response) => {
       budgets: '/api/budgets',
       resources: '/api/resources',
       dependencies: '/api/dependencies',
+      // Staff Plans
+      staff_plans: '/api/staff-plans',
+      plan_items: '/api/plan-items',
+      plan_links: '/api/plan-links',
       // Admin
       admin: '/api/admin',
     },
