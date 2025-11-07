@@ -184,31 +184,37 @@ export default function AlignmentScoreWidget() {
       {/* Breakdown by Category */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-gray-700">Alignment Breakdown</h3>
-        {alignment.breakdown.map((item) => (
-          <div key={item.category}>
-            <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-gray-600 font-medium">{item.category}</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{item.count} items</span>
-                <span className={`font-bold ${getScoreColor(item.score)}`}>
-                  {item.score}%
-                </span>
+        {alignment.breakdown.map((item) => {
+          // Calculate max count for relative bar sizing
+          const maxCount = Math.max(...alignment.breakdown.map(b => b.count));
+          const relativeWidth = (item.count / maxCount) * 100;
+
+          return (
+            <div key={item.category}>
+              <div className="flex items-center justify-between text-sm mb-1">
+                <span className="text-gray-600 font-medium">{item.category}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">{item.count} items</span>
+                  <span className={`font-bold ${getScoreColor(item.score)}`}>
+                    {item.score}%
+                  </span>
+                </div>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    item.score >= 85
+                      ? 'bg-green-500'
+                      : item.score >= 70
+                      ? 'bg-yellow-500'
+                      : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.min(relativeWidth, 100)}%` }}
+                />
               </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  item.score >= 85
-                    ? 'bg-green-500'
-                    : item.score >= 70
-                    ? 'bg-yellow-500'
-                    : 'bg-red-500'
-                }`}
-                style={{ width: `${item.score}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Footer Note */}

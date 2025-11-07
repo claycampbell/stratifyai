@@ -90,22 +90,31 @@ export default function PhilosophyQuickReference() {
         )}
       </div>
 
-      {/* Non-Negotiables Count */}
+      {/* Non-Negotiables List */}
       <div className="pt-4 border-t border-gray-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-red-600" />
-            <span className="text-sm font-medium text-gray-700">Non-Negotiables</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-gray-900">{nonNegotiableCount}</span>
-            <span className="text-xs text-gray-500">rules</span>
-          </div>
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="h-4 w-4 text-red-600" />
+          <h3 className="text-sm font-medium text-gray-700">Non-Negotiables</h3>
+          <span className="text-xs text-gray-500">({nonNegotiableCount} rules)</span>
         </div>
-        {nonNegotiableCount > 0 && (
-          <p className="text-xs text-gray-600 mt-1">
-            Active constraints guiding all recommendations
-          </p>
+        {nonNegotiables && nonNegotiables.length > 0 ? (
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {nonNegotiables.map((rule: any) => (
+              <div key={rule.id} className="flex items-start gap-2 text-xs">
+                <span className="font-semibold text-red-600 flex-shrink-0 mt-0.5">#{rule.rule_number}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-900 font-medium">{rule.title}</p>
+                  {rule.auto_reject && (
+                    <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-800 text-[10px] font-medium rounded mt-1">
+                      AUTO-REJECT
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">No non-negotiables defined yet</p>
         )}
       </div>
     </div>
