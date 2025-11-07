@@ -73,6 +73,9 @@ export default function AIChatBubble() {
           queryClient.invalidateQueries({ queryKey: ['dashboard'] });
         }
 
+        // Refresh recent validations after every AI response
+        queryClient.invalidateQueries({ queryKey: ['recent-validations'] });
+
         setMessage('');
       } catch (error) {
         console.error('Error in chat mutation onSuccess:', error);
