@@ -14,6 +14,8 @@ import Reports from './pages/Reports';
 import StrategicPlanning from './pages/StrategicPlanning';
 import AIStrategyPage from './pages/AIStrategyPage';
 import AdminDashboard from './pages/AdminDashboard';
+import StaffPlans from './pages/StaffPlans';
+import StaffPlanDetail from './pages/StaffPlanDetail';
 
 const queryClient = new QueryClient();
 
@@ -44,6 +46,8 @@ function App() {
               <Route path="ai-strategy" element={<AIStrategyPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="strategic-planning" element={<StrategicPlanning />} />
+              <Route path="staff-plans" element={<StaffPlans />} />
+              <Route path="staff-plans/:id" element={<StaffPlanDetail />} />
               <Route
                 path="admin"
                 element={

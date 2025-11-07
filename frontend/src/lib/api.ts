@@ -309,6 +309,79 @@ export const dependenciesApi = {
   findCircular: () => api.post('/dependencies/analyze/circular'),
 };
 
+// Staff Plans API
+export const staffPlansApi = {
+  getAll: (params?: { user_id?: string; status?: string }) => api.get('/staff-plans', { params }),
+  getById: (id: string) => api.get(`/staff-plans/${id}`),
+  create: (data: {
+    user_id: string;
+    title: string;
+    description?: string;
+    start_date: string;
+    end_date: string;
+    status?: string;
+    created_by?: string;
+  }) => api.post('/staff-plans', data),
+  update: (id: string, data: any) => api.put(`/staff-plans/${id}`, data),
+  delete: (id: string) => api.delete(`/staff-plans/${id}`),
+  getItems: (id: string, params?: { timeframe?: string; status?: string }) =>
+    api.get(`/staff-plans/${id}/items`, { params }),
+  getStats: (id: string) => api.get(`/staff-plans/${id}/stats`),
+};
+
+// Plan Items API
+export const planItemsApi = {
+  getAll: (params?: { plan_id?: string; timeframe?: string; status?: string; priority?: string }) =>
+    api.get('/plan-items', { params }),
+  getById: (id: string) => api.get(`/plan-items/${id}`),
+  create: (data: {
+    plan_id: string;
+    title: string;
+    description?: string;
+    timeframe: string;
+    priority?: string;
+    status?: string;
+    completion_percentage?: number;
+    target_completion_date?: string;
+    notes?: string;
+    order_index?: number;
+  }) => api.post('/plan-items', data),
+  update: (id: string, data: any) => api.put(`/plan-items/${id}`, data),
+  delete: (id: string) => api.delete(`/plan-items/${id}`),
+  getLinks: (id: string) => api.get(`/plan-items/${id}/links`),
+  getUpdates: (id: string) => api.get(`/plan-items/${id}/updates`),
+  addUpdate: (id: string, data: {
+    update_type: string;
+    previous_value?: string;
+    new_value?: string;
+    notes?: string;
+    updated_by?: string;
+  }) => api.post(`/plan-items/${id}/updates`, data),
+  reorder: (items: Array<{ id: string; order_index: number }>) =>
+    api.patch('/plan-items/reorder', { items }),
+};
+
+// Plan Links API
+export const planLinksApi = {
+  getAll: (params?: { plan_item_id?: string; link_type?: string; link_id?: string }) =>
+    api.get('/plan-links', { params }),
+  getById: (id: string) => api.get(`/plan-links/${id}`),
+  create: (data: {
+    plan_item_id: string;
+    link_type: string;
+    link_id: string;
+    description?: string;
+  }) => api.post('/plan-links', data),
+  update: (id: string, data: { description?: string }) => api.put(`/plan-links/${id}`, data),
+  delete: (id: string) => api.delete(`/plan-links/${id}`),
+  getDetails: (id: string) => api.get(`/plan-links/${id}/details`),
+  bulkCreate: (plan_item_id: string, links: Array<{
+    link_type: string;
+    link_id: string;
+    description?: string;
+  }>) => api.post('/plan-links/bulk', { plan_item_id, links }),
+};
+
 // User Preferences API
 export const preferencesApi = {
   get: () => api.get('/users/preferences'),

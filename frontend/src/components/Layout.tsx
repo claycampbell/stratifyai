@@ -14,7 +14,8 @@ import {
   ChevronDown,
   Shield,
   AlertTriangle,
-  X
+  X,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AIChatBubble from './AIChatBubble';
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'KPIs', path: '/kpis', icon: TrendingUp },
   { name: 'AI Strategy Generator', path: '/ai-strategy', icon: Sparkles },
   { name: 'Strategic Planning', path: '/strategic-planning', icon: Layers },
+  { name: '30/60/90 Day Plans', path: '/staff-plans', icon: Calendar },
   { name: 'Reports', path: '/reports', icon: FileBarChart },
   { name: 'Admin', path: '/admin', icon: Shield },
 ];
