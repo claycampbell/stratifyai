@@ -67,6 +67,19 @@ export interface ChatMessage {
   message: string;
   context?: Record<string, any>;
   created_at: string;
+  // P0-006: Philosophy alignment data
+  alignment?: {
+    core_values: string[];
+    cited_principles: string[];
+    decision_hierarchy: {
+      university: number;
+      department: number;
+      individual: number;
+    };
+  };
+  validation_status?: 'approved' | 'flagged' | 'rejected';
+  violated_constraints?: string[];
+  conflict_resolution?: string;
 }
 
 export interface Report {
@@ -456,3 +469,63 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   email_notifications: true,
   dashboard_layout: 'standard',
 };
+
+// P0-006: RMU Athletics Philosophy & Non-Negotiables Integration
+
+export interface PhilosophyDocument {
+  id: string;
+  type: 'mission' | 'vision' | 'purpose' | 'value' | 'guiding_principle' | 'operating_principle' | 'theme';
+  category?: string;
+  title: string;
+  content: string;
+  priority_weight: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NonNegotiable {
+  id: string;
+  rule_number: number;
+  title: string;
+  description: string;
+  enforcement_type: 'hard_constraint' | 'priority_rule' | 'operational_expectation';
+  auto_reject: boolean;
+  validation_keywords?: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DecisionHierarchyLevel {
+  id: string;
+  level: number;
+  stakeholder: string;
+  description?: string;
+  weight: number;
+  created_at: string;
+}
+
+export interface AIRecommendationValidation {
+  id: string;
+  chat_history_id?: string;
+  recommendation_text: string;
+  validation_status: 'approved' | 'flagged' | 'rejected';
+  cited_values?: string[];
+  cited_non_negotiables?: string[];
+  violated_constraints?: string[];
+  decision_hierarchy_alignment?: {
+    university?: number;
+    department?: number;
+    individual?: number;
+  };
+  conflict_resolution?: string;
+  transparency_score?: number;
+  created_at: string;
+}
+
+export interface ValidationResult {
+  status: 'approved' | 'flagged' | 'rejected';
+  violations: NonNegotiable[];
+  autoReject: boolean;
+}

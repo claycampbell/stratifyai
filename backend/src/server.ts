@@ -30,6 +30,9 @@ import staffPlansRouter from './routes/staffPlans';
 import planItemsRouter from './routes/planItems';
 import planLinksRouter from './routes/planLinks';
 
+// Philosophy routes
+import philosophyRouter from './routes/philosophy';
+
 // Admin routes
 import adminRouter from './routes/admin';
 import usersRouter from './routes/users';
@@ -84,6 +87,9 @@ app.use('/api/staff-plans', staffPlansRouter);
 app.use('/api/plan-items', planItemsRouter);
 app.use('/api/plan-links', planLinksRouter);
 
+// Philosophy API Routes
+app.use('/api/philosophy', philosophyRouter);
+
 // Admin API Routes
 app.use('/api/admin', adminRouter);
 app.use('/api/users', usersRouter);
@@ -114,6 +120,8 @@ app.get('/', (req: Request, res: Response) => {
       staff_plans: '/api/staff-plans',
       plan_items: '/api/plan-items',
       plan_links: '/api/plan-links',
+      // Philosophy
+      philosophy: '/api/philosophy',
       // Admin
       admin: '/api/admin',
     },

@@ -1,12 +1,23 @@
 import { getGeminiModel } from '../config/gemini';
-import { AIAnalysisRequest, AIAnalysisResponse, OGSMComponent, KPI } from '../types';
+import {
+  AIAnalysisRequest,
+  AIAnalysisResponse,
+  OGSMComponent,
+  KPI,
+  RecommendationWithAlignment,
+} from '../types';
 import { SchemaType, Tool } from '@google/generative-ai';
+import { PhilosophyService } from './philosophyService';
+import pool from '../config/database';
+import { v4 as uuidv4 } from 'uuid';
 
 export class GeminiService {
   private model;
+  private philosophyService: PhilosophyService;
 
   constructor() {
     this.model = getGeminiModel('gemini-2.0-flash-exp');
+    this.philosophyService = new PhilosophyService();
   }
 
   async extractOGSMFromText(text: string): Promise<Partial<OGSMComponent>[]> {
@@ -430,6 +441,148 @@ Remote Work Productivity Tips
       return firstUserMessage.length > 40
         ? firstUserMessage.substring(0, 40) + '...'
         : firstUserMessage;
+    }
+  }
+
+  /**
+   * Helper method to save chat history and return the ID
+   * Used for validation tracking
+   */
+  private async saveChatHistory(
+    userId: string,
+    userMessage: string,
+    aiResponse: string
+  ): Promise<{ id: string }> {
+    const sessionId = uuidv4(); // Create temporary session for validation
+    const result = await pool.query(
+      `INSERT INTO chat_history (session_id, user_id, role, message)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [sessionId, userId, 'assistant', aiResponse]
+    );
+    return result.rows[0];
+  }
+
+  /**
+   * Enhanced chat with philosophy-aware responses (P0-006)
+   *
+   * This method integrates RMU Athletics philosophy into AI responses by:
+   * 1. Including philosophy context in the system prompt
+   * 2. Requiring AI to cite relevant values and principles
+   * 3. Validating responses against non-negotiables
+   * 4. Auto-rejecting or flagging recommendations that violate rules
+   */
+  async chatWithPhilosophy(
+    message: string,
+    userId: string,
+    includeContext: boolean = true
+  ): Promise<string> {
+    let systemPrompt = '';
+
+    if (includeContext) {
+      // Add philosophy context to every AI interaction
+      systemPrompt = await this.philosophyService.buildPhilosophyContext();
+    }
+
+    systemPrompt += `\nUser Question: ${message}\n\n`;
+    systemPrompt += `Provide a response that:\n`;
+    systemPrompt += `1. Directly answers the question\n`;
+    systemPrompt += `2. Cites relevant Core Values or Principles that support your answer\n`;
+    systemPrompt += `3. Explains how your recommendation aligns with the Decision Hierarchy (University → Department → Individual)\n`;
+    systemPrompt += `4. Identifies any Non-Negotiables that are relevant\n`;
+    systemPrompt += `5. If there are competing principles, explain how you resolved the conflict\n\n`;
+    systemPrompt += `Format your response with clear sections for transparency.\n`;
+
+    try {
+      const result = await this.model.generateContent(systemPrompt);
+      const response = result.response.text();
+
+      // Validate response against non-negotiables
+      const chatHistory = await this.saveChatHistory(userId, message, response);
+      const validation = await this.philosophyService.validateRecommendation(
+        response,
+        chatHistory.id
+      );
+
+      if (validation.autoReject) {
+        return `⚠️ RECOMMENDATION REJECTED\n\nThe proposed recommendation violates the following Non-Negotiables:\n\n${validation.violations
+          .map((v) => `- ${v.title}: ${v.description}`)
+          .join(
+            '\n'
+          )}\n\nPlease provide an alternative approach that aligns with RMU Athletics' operational standards.`;
+      }
+
+      if (validation.status === 'flagged') {
+        return `⚠️ RECOMMENDATION FLAGGED FOR REVIEW\n\n${response}\n\n---\n**Validation Notice**: This recommendation may conflict with:\n${validation.violations
+          .map((v) => `- ${v.title}`)
+          .join('\n')}\n\nPlease review carefully before implementation.`;
+      }
+
+      return response;
+    } catch (error) {
+      console.error('[GeminiService] Error in chatWithPhilosophy:', error);
+      throw new Error('Failed to generate philosophy-aware response');
+    }
+  }
+
+  /**
+   * Generate strategic recommendation with philosophy alignment (P0-006)
+   *
+   * Creates recommendations that are explicitly aligned with RMU Athletics'
+   * mission, vision, core values, and decision hierarchy. Returns structured
+   * data showing how the recommendation aligns with organizational philosophy.
+   */
+  async generatePhilosophyAlignedRecommendation(
+    scenario: string,
+    constraints?: string[]
+  ): Promise<RecommendationWithAlignment> {
+    const philosophyContext = await this.philosophyService.buildPhilosophyContext();
+
+    let prompt = `${philosophyContext}\n\n`;
+    prompt += `## Scenario\n${scenario}\n\n`;
+    if (constraints && constraints.length > 0) {
+      prompt += `## Additional Constraints\n${constraints.join('\n')}\n\n`;
+    }
+
+    prompt += `\n## Task\n`;
+    prompt += `Provide a strategic recommendation that:\n`;
+    prompt += `1. Addresses the scenario effectively\n`;
+    prompt += `2. Aligns with RMU Athletics' Mission and Vision\n`;
+    prompt += `3. Upholds all relevant Core Values\n`;
+    prompt += `4. Follows the Decision Hierarchy (University → Department → Individual)\n`;
+    prompt += `5. Does not violate any Non-Negotiables\n`;
+    prompt += `6. Explains your reasoning with citations to specific values/principles\n\n`;
+    prompt += `Respond in JSON format:\n`;
+    prompt += `{\n`;
+    prompt += `  "recommendation": "Your strategic recommendation",\n`;
+    prompt += `  "alignment": {\n`;
+    prompt += `    "mission_vision": "How this aligns with mission/vision",\n`;
+    prompt += `    "core_values": ["List of relevant core values"],\n`;
+    prompt += `    "decision_hierarchy": {"university": 85, "department": 75, "individual": 40},\n`;
+    prompt += `    "cited_principles": ["Principle 1", "Principle 2"],\n`;
+    prompt += `    "non_negotiables_check": "Confirmation that no non-negotiables are violated"\n`;
+    prompt += `  },\n`;
+    prompt += `  "potential_conflicts": "Any competing principles and how they were resolved",\n`;
+    prompt += `  "implementation_notes": "Additional considerations for implementation"\n`;
+    prompt += `}\n`;
+
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = result.response.text();
+      console.log(
+        '[GeminiService] Philosophy-aligned recommendation response:',
+        response.substring(0, 500)
+      );
+
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      throw new Error('Failed to parse philosophy-aligned recommendation JSON');
+    } catch (error) {
+      console.error('[GeminiService] Error generating philosophy-aligned recommendation:', error);
+      throw new Error('Failed to generate philosophy-aligned recommendation');
     }
   }
 }

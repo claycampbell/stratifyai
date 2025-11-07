@@ -8,6 +8,9 @@ import StrategicOverview from '@/components/StrategicOverview';
 import KPITrendsChart from '@/components/KPITrendsChart';
 import StrategicRoadmap from '@/components/StrategicRoadmap';
 import AlignmentMatrix from '@/components/AlignmentMatrix';
+import PhilosophyQuickReference from '@/components/PhilosophyQuickReference';
+import RecentValidations from '@/components/RecentValidations';
+import AlignmentScoreWidget from '@/components/AlignmentScoreWidget';
 import AthleticsDirectorDashboard from './AthleticsDirectorDashboard';
 import ManagerDashboard from './ManagerDashboard';
 import StaffDashboard from './StaffDashboard';
@@ -154,6 +157,13 @@ export default function Dashboard() {
             </div>
           </Link>
         </div>
+      </div>
+
+      {/* Philosophy Widgets Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <PhilosophyQuickReference />
+        <RecentValidations />
+        <AlignmentScoreWidget />
       </div>
 
       {/* View Tabs */}

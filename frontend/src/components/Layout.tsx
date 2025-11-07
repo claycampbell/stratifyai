@@ -8,18 +8,17 @@ import {
   FileBarChart,
   Layers,
   Sparkles,
-  Bell,
   User,
   LogOut,
   ChevronDown,
   Shield,
   AlertTriangle,
   X,
-  Calendar
+  Calendar,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AIChatBubble from './AIChatBubble';
-import KPIUpdateNotification from './KPIUpdateNotification';
 import UserPreferencesDebug from './UserPreferencesDebug';
 
 const navigation = [
@@ -30,6 +29,7 @@ const navigation = [
   { name: 'AI Strategy Generator', path: '/ai-strategy', icon: Sparkles },
   { name: 'Strategic Planning', path: '/strategic-planning', icon: Layers },
   { name: '30/60/90 Day Plans', path: '/staff-plans', icon: Calendar },
+  { name: 'RMU Philosophy', path: '/philosophy', icon: BookOpen },
   { name: 'Reports', path: '/reports', icon: FileBarChart },
   { name: 'Admin', path: '/admin', icon: Shield },
 ];
@@ -38,7 +38,6 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, hasAnyPermission, isImpersonating, stopImpersonation } = useAuth();
-  const [triggerNotification, setTriggerNotification] = useState<(() => void) | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -118,15 +117,6 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-4">
-              {/* KPI Notification Trigger Button */}
-              <button
-                onClick={() => triggerNotification?.()}
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Test KPI Update Notification"
-              >
-                <Bell className="h-5 w-5" />
-              </button>
-
               {/* User Profile Dropdown */}
               <div className="relative" ref={userMenuRef}>
                 <button
@@ -227,11 +217,11 @@ export default function Layout() {
       {/* Global AI Chat Bubble */}
       <AIChatBubble />
 
-      {/* KPI Update Notification */}
-      <KPIUpdateNotification
+      {/* KPI Update Notification - Temporarily disabled due to infinite loop */}
+      {/* <KPIUpdateNotification
         checkInterval={7}
         onTrigger={(callback) => setTriggerNotification(() => callback)}
-      />
+      /> */}
 
       {/* User Preferences Debug (dev mode) */}
       {import.meta.env.DEV && <UserPreferencesDebug />}

@@ -390,4 +390,24 @@ export const preferencesApi = {
   reset: () => api.post('/users/preferences/reset'),
 };
 
+// Philosophy API
+export const philosophyApi = {
+  getDocuments: () => api.get('/philosophy/documents'),
+  createDocument: (data: {
+    type: string;
+    category?: string;
+    title: string;
+    content: string;
+    priority_weight?: number;
+  }) => api.post('/philosophy/documents', data),
+  getNonNegotiables: () => api.get('/philosophy/non-negotiables'),
+  getDecisionHierarchy: () => api.get('/philosophy/decision-hierarchy'),
+  validate: (data: {
+    recommendationText: string;
+    chatHistoryId?: string;
+  }) => api.post('/philosophy/validate', data),
+  getRecentValidations: (limit?: number) =>
+    api.get('/philosophy/validations/recent', { params: { limit } }),
+};
+
 export default api;

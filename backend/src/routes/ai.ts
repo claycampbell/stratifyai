@@ -2,9 +2,50 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
 import geminiService from '../services/geminiService';
+import philosophyService from '../services/philosophyService';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+
+// Helper function to determine if a response is strategic/actionable vs conversational
+function isStrategicRecommendation(text: string): boolean {
+  const lowerText = text.toLowerCase();
+
+  // Strategic indicators - presence of these suggests actionable recommendations
+  const strategicIndicators = [
+    'recommend', 'suggest', 'should', 'propose', 'strategy', 'plan',
+    'implement', 'develop', 'create', 'establish', 'initiative',
+    'objective', 'goal', 'kpi', 'metric', 'measure', 'target',
+    'decision', 'approach', 'prioritize', 'focus on', 'invest',
+    'allocate', 'budget', 'resource', 'hire', 'recruit',
+    'restructure', 'reorganize', 'policy', 'procedure', 'process'
+  ];
+
+  // Conversational indicators - presence of these suggests simple chat
+  const conversationalIndicators = [
+    'hello', 'hi', 'how are you', 'what can i help', 'how can i assist',
+    'good morning', 'good afternoon', 'thanks', 'thank you', 'you\'re welcome',
+    'yes', 'no', 'okay', 'sure', 'i understand', 'got it'
+  ];
+
+  // Check for conversational patterns (short responses are usually conversational)
+  if (text.length < 100) {
+    const hasConversationalPattern = conversationalIndicators.some(pattern =>
+      lowerText.includes(pattern)
+    );
+    if (hasConversationalPattern) {
+      return false; // It's just conversation
+    }
+  }
+
+  // Check for strategic patterns
+  const strategicMatches = strategicIndicators.filter(indicator =>
+    lowerText.includes(indicator)
+  ).length;
+
+  // If it has 2 or more strategic indicators, consider it strategic
+  return strategicMatches >= 2;
+}
 
 // Chat with AI Chief Strategy Officer
 router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
@@ -116,12 +157,36 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Save AI response
-    await pool.query(
+    // Determine if this response needs philosophy validation
+    const isStrategicResponse = isStrategicRecommendation(responseMessage);
+
+    // Extract philosophy alignment from AI response (only for strategic responses)
+    const alignment = isStrategicResponse ? extractPhilosophyAlignment(responseMessage) : null;
+
+    // Save AI response with alignment data
+    const chatHistoryResult = await pool.query(
       `INSERT INTO chat_history (session_id, user_id, role, message)
-       VALUES ($1, $2, $3, $4)`,
+       VALUES ($1, $2, $3, $4) RETURNING id`,
       [sessionId, userId, 'assistant', responseMessage]
     );
+
+    const chatHistoryId = chatHistoryResult.rows[0].id;
+
+    // Validate recommendation against philosophy constraints (only for strategic responses)
+    let validationResult;
+    let validationStatus: 'approved' | 'flagged' | 'rejected' | undefined = undefined;
+    let violatedConstraints: string[] = [];
+
+    if (isStrategicResponse) {
+      try {
+        validationResult = await philosophyService.validateRecommendation(responseMessage, chatHistoryId);
+        validationStatus = validationResult.status;
+        violatedConstraints = validationResult.violations.map(v => v.title);
+      } catch (error) {
+        console.error('[AI Chat] Error validating recommendation:', error);
+        // Continue without validation if it fails
+      }
+    }
 
     // Generate title for new sessions (async, don't wait for it)
     if (isNewSession && !sessionCheck.rows[0]?.title) {
@@ -140,10 +205,14 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Build response with philosophy alignment data
     const responseData = {
       session_id: sessionId,
       message: responseMessage,
       actions: executedActions,
+      alignment: alignment,
+      validation_status: validationStatus,
+      violated_constraints: violatedConstraints,
     };
 
     console.log('AI Chat Response:', JSON.stringify(responseData, null, 2));
@@ -307,6 +376,77 @@ async function executeAction(action: any) {
   }
 }
 
+// Helper function to extract philosophy alignment from AI response text
+function extractPhilosophyAlignment(responseText: string): {
+  core_values: string[];
+  cited_principles: string[];
+  decision_hierarchy: {
+    university: number;
+    department: number;
+    individual: number;
+  };
+} {
+  const lowerText = responseText.toLowerCase();
+  const coreValues: string[] = [];
+
+  // RMU Core Values (from philosophy system)
+  const valueKeywords = {
+    'Excellence': ['excellence', 'academic success', 'high standard', 'quality', 'best practice'],
+    'Integrity': ['integrity', 'ethical', 'honest', 'transparent', 'accountable'],
+    'Community': ['community', 'service', 'collaboration', 'partnership', 'together'],
+    'Student-Centeredness': ['student', 'student-athlete', 'welfare', 'development', 'support'],
+    'Innovation': ['innovation', 'creative', 'new approach', 'adapt', 'improve'],
+    'Respect': ['respect', 'dignity', 'inclusive', 'diversity', 'fair'],
+  };
+
+  // Check for core values
+  Object.entries(valueKeywords).forEach(([value, keywords]) => {
+    const found = keywords.some(keyword => lowerText.includes(keyword));
+    if (found) {
+      coreValues.push(value);
+    }
+  });
+
+  // Extract cited principles (simple keyword matching)
+  const citedPrinciples: string[] = [];
+  if (lowerText.includes('guiding principle') || lowerText.includes('principle')) {
+    citedPrinciples.push('Guiding Principles Referenced');
+  }
+  if (lowerText.includes('operating principle') || lowerText.includes('non-negotiable')) {
+    citedPrinciples.push('Operating Principles Referenced');
+  }
+
+  // Calculate decision hierarchy scores based on context keywords
+  // Higher scores indicate stronger alignment
+  const universityKeywords = ['university', 'institution', 'rmu', 'robert morris', 'strategic', 'mission', 'vision'];
+  const departmentKeywords = ['department', 'athletics', 'athletic department', 'team', 'sport', 'program'];
+  const individualKeywords = ['individual', 'coach', 'staff', 'athlete', 'person', 'player'];
+
+  const universityMentions = universityKeywords.filter(kw => lowerText.includes(kw)).length;
+  const departmentMentions = departmentKeywords.filter(kw => lowerText.includes(kw)).length;
+  const individualMentions = individualKeywords.filter(kw => lowerText.includes(kw)).length;
+
+  // Base scores (Decision Hierarchy: University > Department > Individual)
+  let universityScore = 50 + (universityMentions * 10);
+  let departmentScore = 40 + (departmentMentions * 8);
+  let individualScore = 30 + (individualMentions * 5);
+
+  // Cap scores at 100
+  universityScore = Math.min(universityScore, 100);
+  departmentScore = Math.min(departmentScore, 100);
+  individualScore = Math.min(individualScore, 100);
+
+  return {
+    core_values: coreValues,
+    cited_principles: citedPrinciples,
+    decision_hierarchy: {
+      university: universityScore,
+      department: departmentScore,
+      individual: individualScore,
+    },
+  };
+}
+
 // Get chat history for a specific session
 router.get('/chat/:session_id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -324,7 +464,25 @@ router.get('/chat/:session_id', authenticate, async (req: AuthRequest, res: Resp
       [session_id, userId]
     );
 
-    res.json(result.rows);
+    // Enhance assistant messages with philosophy alignment data
+    const enhancedMessages = result.rows.map((msg: any) => {
+      if (msg.role === 'assistant') {
+        // Extract alignment from message text
+        const alignment = extractPhilosophyAlignment(msg.message);
+
+        // Get validation status if it exists (from ai_recommendation_validations table)
+        // For now, we'll compute it on-the-fly for historical messages
+        return {
+          ...msg,
+          alignment,
+          validation_status: 'approved', // Default for historical messages
+          violated_constraints: [],
+        };
+      }
+      return msg;
+    });
+
+    res.json(enhancedMessages);
   } catch (error) {
     console.error('Error fetching chat history:', error);
     res.status(500).json({ error: 'Failed to fetch chat history' });
@@ -574,6 +732,47 @@ router.delete('/reports/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting report:', error);
     res.status(500).json({ error: 'Failed to delete report' });
+  }
+});
+
+// ============================================================================
+// Philosophy-Aware Chat (P0-006 Test Endpoint)
+// ============================================================================
+
+/**
+ * POST /api/ai/chat-philosophy
+ * Test endpoint for philosophy-aware chat with validation
+ * Body: { message, userId }
+ */
+router.post('/chat-philosophy', async (req: Request, res: Response) => {
+  try {
+    const { message, userId } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'message is required' });
+    }
+
+    // Use default user ID if not provided (for testing)
+    const testUserId = userId || '00000000-0000-0000-0000-000000000001';
+
+    // Call the philosophy-aware chat method
+    const response = await geminiService.chatWithPhilosophy(
+      message,
+      testUserId,
+      true // includeContext
+    );
+
+    res.json({
+      response,
+      message: 'Philosophy-aware response generated',
+      note: 'Check the response for philosophy citations and validation status'
+    });
+  } catch (error: any) {
+    console.error('Error in philosophy-aware chat:', error);
+    res.status(500).json({
+      error: 'Failed to generate philosophy-aware response',
+      details: error.message
+    });
   }
 });
 
