@@ -312,6 +312,58 @@ export interface OGSMComponentVersion {
   created_at: string;
 }
 
+// 30/60/90 Day Plans Types
+
+export interface StaffPlan {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  status: 'active' | 'completed' | 'archived' | 'on_hold';
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanItem {
+  id: string;
+  plan_id: string;
+  title: string;
+  description?: string;
+  timeframe: '30_days' | '60_days' | '90_days';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
+  completion_percentage: number;
+  target_completion_date?: string;
+  actual_completion_date?: string;
+  notes?: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanItemLink {
+  id: string;
+  plan_item_id: string;
+  link_type: 'strategy' | 'kpi' | 'initiative' | 'ogsm_component';
+  link_id: string;
+  description?: string;
+  created_at: string;
+}
+
+export interface PlanUpdate {
+  id: string;
+  plan_item_id: string;
+  update_type: 'status_change' | 'progress_update' | 'note_added' | 'completion' | 'blocked';
+  previous_value?: string;
+  new_value?: string;
+  notes?: string;
+  updated_by?: string;
+  created_at: string;
+}
+
 // AI Strategy Generation Types
 
 export interface StrategyGenerationContext {

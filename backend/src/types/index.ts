@@ -314,6 +314,58 @@ export interface OGSMComponentVersion {
   created_at: Date;
 }
 
+// 30/60/90 Day Plans Types
+
+export interface StaffPlan {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  start_date: Date;
+  end_date: Date;
+  status: 'active' | 'completed' | 'archived' | 'on_hold';
+  created_by?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface PlanItem {
+  id: string;
+  plan_id: string;
+  title: string;
+  description?: string;
+  timeframe: '30_days' | '60_days' | '90_days';
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'cancelled';
+  completion_percentage: number;
+  target_completion_date?: Date;
+  actual_completion_date?: Date;
+  notes?: string;
+  order_index: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface PlanItemLink {
+  id: string;
+  plan_item_id: string;
+  link_type: 'strategy' | 'kpi' | 'initiative' | 'ogsm_component';
+  link_id: string;
+  description?: string;
+  created_at: Date;
+}
+
+export interface PlanUpdate {
+  id: string;
+  plan_item_id: string;
+  update_type: 'status_change' | 'progress_update' | 'note_added' | 'completion' | 'blocked';
+  previous_value?: string;
+  new_value?: string;
+  notes?: string;
+  updated_by?: string;
+  created_at: Date;
+}
+
 // User Preferences - stored in users.preferences JSONB column
 export interface UserPreferences {
   // UI Preferences
