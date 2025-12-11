@@ -227,12 +227,20 @@ export class PhilosophyService {
       console.log(`[PhilosophyService] Validation - Alignment Score: ${alignmentScore}, Violations: ${violations.length}, Status: ${status}`);
 
       // Log validation
-      await pool.query(
-        `INSERT INTO ai_recommendation_validations
-         (chat_history_id, recommendation_text, validation_status, violated_constraints)
-         VALUES ($1, $2, $3, $4)`,
-        [chatHistoryId, recommendationText, status, violations.map((v) => v.id)]
-      );
+      // Convert array of UUIDs to PostgreSQL array format
+      const violatedIds = violations.map((v) => v.id);
+
+      try {
+        await pool.query(
+          `INSERT INTO ai_recommendation_validations
+           (chat_history_id, recommendation_text, validation_status, violated_constraints)
+           VALUES ($1, $2, $3, $4::uuid[])`,
+          [chatHistoryId, recommendationText, status, violatedIds]
+        );
+      } catch (dbError) {
+        console.error('[PhilosophyService] Error saving validation to database:', dbError);
+        // Don't throw - validation result is still valid even if logging fails
+      }
 
       return {
         status,

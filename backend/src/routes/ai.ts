@@ -217,9 +217,19 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
 
     console.log('AI Chat Response:', JSON.stringify(responseData, null, 2));
     res.json(responseData);
-  } catch (error) {
-    console.error('Error in chat:', error);
-    res.status(500).json({ error: 'Failed to process chat message' });
+  } catch (error: any) {
+    console.error('[AI Chat] Error in chat endpoint:', error);
+    console.error('[AI Chat] Error stack:', error?.stack);
+    console.error('[AI Chat] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail,
+      hint: error?.hint,
+    });
+    res.status(500).json({
+      error: 'Failed to process chat message',
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+    });
   }
 });
 
