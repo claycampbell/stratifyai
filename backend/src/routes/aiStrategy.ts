@@ -37,7 +37,7 @@ router.post('/generate', async (req: Request, res: Response) => {
     res.json({
       strategies,
       generated_at: new Date().toISOString(),
-      model: 'gemini-2.0-flash-exp'
+      model: 'gpt-4o'
     });
   } catch (error) {
     console.error('Error generating strategies:', error);

@@ -1,7 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import pool from '../config/database';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
 interface StrategyGenerationContext {
   objective: string;
@@ -153,10 +155,24 @@ Return ONLY a valid JSON array of strategy objects, no other text:
 [{...}, {...}, {...}]
 `;
 
-      // Step 4: Call Gemini
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-      const result = await model.generateContent(prompt);
-      const responseText = result.response.text();
+      // Step 4: Call OpenAI
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a world-class strategy consultant. Return ONLY valid JSON arrays with no additional text or formatting.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+      });
+
+      const responseText = completion.choices[0].message.content || '{"strategies": []}';
 
       // Step 5: Parse the response
       const strategies = this.parseStrategiesResponse(responseText);
@@ -172,17 +188,15 @@ Return ONLY a valid JSON array of strategy objects, no other text:
   }
 
   /**
-   * Parse and validate the strategies response from Gemini
+   * Parse and validate the strategies response from OpenAI
    */
   private parseStrategiesResponse(responseText: string): GeneratedStrategy[] {
     try {
-      // Extract JSON array from response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
-      }
+      // Parse the JSON response (OpenAI returns json_object, may have strategies wrapper)
+      const parsed = JSON.parse(responseText);
 
-      const strategies = JSON.parse(jsonMatch[0]);
+      // Handle both direct array and wrapped object formats
+      const strategies = Array.isArray(parsed) ? parsed : (parsed.strategies || []);
 
       // Validate each strategy has required fields
       return strategies.map((s: any) => ({
@@ -220,7 +234,7 @@ Return ONLY a valid JSON array of strategy objects, no other text:
           context.objective,
           JSON.stringify(context),
           JSON.stringify(strategies),
-          'gemini-2.0-flash-exp'
+          'gpt-4o'
         ]
       );
     } catch (error) {
