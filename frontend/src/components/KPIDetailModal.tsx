@@ -103,6 +103,10 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
         notes: '',
       });
     },
+    onError: (error: any) => {
+      console.error('Failed to add KPI history:', error);
+      alert(`Failed to add entry: ${error.response?.data?.error || error.message}`);
+    },
   });
 
   const handleUpdate = () => {
@@ -110,12 +114,21 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
   };
 
   const handleAddHistory = () => {
+    console.log('handleAddHistory called', newHistoryEntry);
     if (newHistoryEntry.value && newHistoryEntry.recorded_date) {
-      addHistoryMutation.mutate({
+      const payload = {
         value: parseFloat(newHistoryEntry.value),
         recorded_date: newHistoryEntry.recorded_date,
         notes: newHistoryEntry.notes,
+      };
+      console.log('Submitting KPI history:', payload);
+      addHistoryMutation.mutate(payload);
+    } else {
+      console.warn('Missing required fields:', {
+        value: newHistoryEntry.value,
+        recorded_date: newHistoryEntry.recorded_date,
       });
+      alert('Please fill in both Value and Date fields');
     }
   };
 
