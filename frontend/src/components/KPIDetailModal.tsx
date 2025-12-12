@@ -87,6 +87,10 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
       queryClient.invalidateQueries({ queryKey: ['kpis'] });
       setIsEditing(false);
     },
+    onError: (error: any) => {
+      console.error('Failed to update KPI:', error);
+      alert(`Failed to save changes: ${error.response?.data?.error || error.message}`);
+    },
   });
 
   // Add history mutation
@@ -110,6 +114,7 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
   });
 
   const handleUpdate = () => {
+    console.log('handleUpdate called with:', editedKPI);
     updateMutation.mutate(editedKPI);
   };
 
