@@ -48,6 +48,9 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
     async <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
       if (!user) return;
 
+      // Save previous value for revert
+      const previousValue = preferences[key];
+
       // Optimistic update
       setPreferences((prev) => ({ ...prev, [key]: value }));
 
@@ -55,12 +58,12 @@ export function UserPreferencesProvider({ children }: { children: ReactNode }) {
         await preferencesApi.updateKey(key as string, value);
       } catch (error) {
         console.error(`Failed to update preference ${String(key)}:`, error);
-        // Revert on error
-        await loadPreferences();
-        throw error;
+        // Revert to previous value on error (don't reload all preferences)
+        setPreferences((prev) => ({ ...prev, [key]: previousValue }));
+        // Don't throw - allow UI to continue functioning
       }
     },
-    [user]
+    [user, preferences]
   );
 
   const updatePreferences = useCallback(
