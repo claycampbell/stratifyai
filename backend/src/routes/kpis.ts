@@ -303,14 +303,19 @@ router.post('/:id/history', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'value and recorded_date are required' });
     }
 
-    // Get KPI to check validation rules
-    const kpiResult = await pool.query('SELECT validation_rules FROM kpis WHERE id = $1', [id]);
-    if (kpiResult.rows.length > 0 && kpiResult.rows[0].validation_rules) {
-      const validation = KPIService.validateKPIValue(value, kpiResult.rows[0].validation_rules);
-      if (!validation.isValid) {
-        console.log('[KPI History] Validation failed:', validation.errors);
-        return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
+    // Get KPI to check validation rules (if column exists)
+    try {
+      const kpiResult = await pool.query('SELECT validation_rules FROM kpis WHERE id = $1', [id]);
+      if (kpiResult.rows.length > 0 && kpiResult.rows[0].validation_rules) {
+        const validation = KPIService.validateKPIValue(value, kpiResult.rows[0].validation_rules);
+        if (!validation.isValid) {
+          console.log('[KPI History] Validation failed:', validation.errors);
+          return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
+        }
       }
+    } catch (validationError) {
+      // If validation_rules column doesn't exist, skip validation
+      console.log('[KPI History] Skipping validation (validation_rules column may not exist)');
     }
 
     console.log('[KPI History] Inserting history entry...');
