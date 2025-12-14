@@ -1,5 +1,5 @@
 import mammoth from 'mammoth';
-import xlsx from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -26,14 +26,14 @@ export class FileProcessor {
 
   static async processXlsx(filePath: string): Promise<ProcessedDocument> {
     try {
-      const workbook = xlsx.readFile(filePath);
+      const workbook = XLSX.readFile(filePath);
       const sheets: any[] = [];
       let combinedText = '';
 
-      workbook.SheetNames.forEach((sheetName) => {
+      workbook.SheetNames.forEach((sheetName: string) => {
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-        const textData = xlsx.utils.sheet_to_txt(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const textData = XLSX.utils.sheet_to_txt(worksheet);
 
         sheets.push({
           name: sheetName,
