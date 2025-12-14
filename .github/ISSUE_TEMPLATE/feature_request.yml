@@ -1,0 +1,123 @@
+name: Feature Request
+description: Propose a new feature for Stratify AI
+title: "[FEATURE] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to propose a new feature!
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Development Phase
+      description: Which phase does this feature belong to?
+      options:
+        - Phase 0 - Quick Wins
+        - Phase 1 - Core Features
+        - Phase 2 - Integrations
+        - Phase 3 - Advanced Features
+        - Future/Backlog
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Effort Estimate
+      description: Estimated development effort
+      options:
+        - Low (< 20 hours)
+        - Medium (20-40 hours)
+        - High (40-80 hours)
+        - Very High (> 80 hours)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Describe the feature in detail
+      placeholder: What should this feature do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: business-value
+    attributes:
+      label: Business Value
+      description: Why is this feature needed? What problem does it solve?
+      placeholder: Explain the business case and user impact
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: Describe specific scenarios where this feature would be used
+      placeholder: |
+        1. User does X...
+        2. System responds with Y...
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What criteria must be met for this feature to be considered complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: technical-notes
+    attributes:
+      label: Technical Considerations
+      description: Any technical details, dependencies, or constraints
+      placeholder: Database changes, API modifications, third-party integrations, etc.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Components
+      description: Which parts of the system will be affected?
+      multiple: true
+      options:
+        - Frontend
+        - Backend
+        - Database
+        - AI/Gemini Integration
+        - Documentation
+        - Testing
+    validations:
+      required: true
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Related Issues/Features
+      description: Link to related issues or features
+      placeholder: "#123, #456"
+    validations:
+      required: false

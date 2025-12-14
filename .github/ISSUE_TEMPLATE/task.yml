@@ -1,0 +1,122 @@
+name: Task/Implementation
+description: Track a specific implementation task
+title: "[TASK] "
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to track specific implementation tasks from the feature board.
+
+  - type: input
+    id: feature-id
+    attributes:
+      label: Feature ID
+      description: Reference to feature board (e.g., P0-001, P1-003)
+      placeholder: "P0-001"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      description: Development phase
+      options:
+        - Phase 0 - Quick Wins
+        - Phase 1 - Core Features
+        - Phase 2 - Integrations
+        - Phase 3 - Advanced Features
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Primary component affected
+      options:
+        - Frontend
+        - Backend
+        - Database
+        - AI/Gemini
+        - Documentation
+        - Testing
+        - DevOps
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Task Description
+      description: Detailed description of what needs to be implemented
+      placeholder: What needs to be done?
+    validations:
+      required: true
+
+  - type: textarea
+    id: subtasks
+    attributes:
+      label: Subtasks
+      description: Break down the task into smaller steps
+      placeholder: |
+        - [ ] Subtask 1
+        - [ ] Subtask 2
+        - [ ] Subtask 3
+    validations:
+      required: false
+
+  - type: textarea
+    id: files
+    attributes:
+      label: Files to Modify/Create
+      description: List the files that will be changed or created
+      placeholder: |
+        - backend/src/routes/kpis.ts
+        - frontend/src/components/KPICard.tsx
+    validations:
+      required: false
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Other tasks or issues that must be completed first
+      placeholder: "Depends on #123, #456"
+    validations:
+      required: false
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Time Estimate
+      description: Estimated hours to complete
+      placeholder: "8 hours"
+    validations:
+      required: false
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing Requirements
+      description: How should this be tested?
+      placeholder: |
+        - [ ] Unit tests
+        - [ ] Integration tests
+        - [ ] Manual testing steps
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: When is this task considered complete?
+      placeholder: |
+        - [ ] Code implemented
+        - [ ] Tests passing
+        - [ ] Code reviewed
+        - [ ] Documentation updated
+    validations:
+      required: false
