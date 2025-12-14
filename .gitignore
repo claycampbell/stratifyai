@@ -45,3 +45,14 @@ docker-compose.override.yml
 # Database
 *.db
 *.sqlite
+
+# Test outputs
+test-screenshots/
+test-files/
+backend-logs.zip
+*.png
+backend/NUL
+customerfeedback.txt
+
+# Local scripts (utility scripts for development)
+scripts/

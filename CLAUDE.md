@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI-Powered OGSM Management Platform for Robert Morris University Athletics. An AI Chief Strategy Officer that helps organizations manage strategic plans using the OGSM (Objectives, Goals, Strategies, Measures) framework with Google Gemini AI integration.
+AI-Powered OGSM Management Platform for Robert Morris University Athletics. An AI Chief Strategy Officer that helps organizations manage strategic plans using the OGSM (Objectives, Goals, Strategies, Measures) framework with OpenAI integration.
 
 **Tech Stack:**
 - Backend: Node.js + Express + TypeScript + PostgreSQL
 - Frontend: React 18 + TypeScript + Vite + TailwindCSS
-- AI: Google Gemini (gemini-2.0-flash-exp model)
+- AI: OpenAI (GPT-4o model)
 - Infrastructure: Docker + Docker Compose
 
 ## Development Commands
@@ -62,8 +62,8 @@ All tables use UUID primary keys. Key tables:
 The `ogsm_components` table has a self-referential `parent_id` for hierarchical relationships. Database schema is auto-initialized on first backend startup from `backend/src/database/init.sql`.
 
 ### AI Integration Architecture
-The `GeminiService` class (`backend/src/services/geminiService.ts`) is the core AI integration point:
-- Uses Google Gemini `gemini-2.0-flash-exp` model
+The `OpenAIService` class (`backend/src/services/openaiService.ts`) is the core AI integration point:
+- Uses OpenAI `gpt-4o` model
 - Handles OGSM extraction from documents
 - Provides conversational AI chat with system context
 - Generates strategic analysis and reports
@@ -72,9 +72,10 @@ The `GeminiService` class (`backend/src/services/geminiService.ts`) is the core 
 **Key methods:**
 - `extractOGSMFromText()` - Parses documents to extract strategic components
 - `extractKPIsFromText()` - Identifies KPIs from documents
-- `chatWithActionSupport()` - Context-aware chat with current KPIs/OGSM state
+- `chatWithActionSupport()` - Context-aware chat with current KPIs/OGSM state and function calling
 - `analyzeStrategicAlignment()` - Analyzes alignment between objectives/goals/strategies
 - `generateProgressReport()` - Creates formatted progress reports
+- `chatWithPhilosophy()` - Philosophy-aware chat with RMU Athletics values integration
 
 ### API Routes
 Backend routes are in `backend/src/routes/`:
@@ -101,23 +102,23 @@ Supports DOCX, XLSX, TXT, MD formats via:
 - `xlsx` for spreadsheet processing
 - Raw text extraction for TXT/MD
 - Files processed in `backend/src/utils/fileProcessor.ts`
-- Extracted text is sent to Gemini for OGSM/KPI extraction
+- Extracted text is sent to OpenAI for OGSM/KPI extraction
 
 ## Environment Configuration
 
 Required environment variables (see `.env.example`):
-- `GEMINI_API_KEY` - **Required** - Google Gemini API key from https://makersuite.google.com/app/apikey
+- `OPENAI_API_KEY` - **Required** - OpenAI API key from https://platform.openai.com/api-keys
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - PostgreSQL connection (defaults work for Docker)
 - `PORT` - Backend port (default: 5000)
 - `VITE_API_URL` - Frontend API URL (default: http://localhost:5000/api)
 
-**Setup:** Copy `.env.example` to `.env` and add your Gemini API key before running.
+**Setup:** Copy `.env.example` to `.env` and add your OpenAI API key before running.
 
 ## Key Development Patterns
 
 ### Adding New AI Features
-1. Add method to `GeminiService` class with appropriate prompt engineering
-2. Parse JSON responses from Gemini (match with regex: `/\[[\s\S]*\]/` or `/\{[\s\S]*\}/`)
+1. Add method to `OpenAIService` class with appropriate prompt engineering
+2. Use OpenAI's `response_format: { type: 'json_object' }` for structured JSON responses
 3. Create route handler in `backend/src/routes/ai.ts`
 4. Add API method in `frontend/src/lib/api.ts`
 5. Integrate in relevant frontend page component
@@ -146,8 +147,16 @@ After starting services:
 
 ## Known Considerations
 
-- The Gemini API has rate limits on the free tier
+- OpenAI API has usage-based pricing and rate limits depending on tier
 - File uploads are limited to 10MB (configurable via `MAX_FILE_SIZE`)
 - Database schema auto-initializes but doesn't include migrations for schema changes
 - Chat history is persisted but not automatically cleaned up
 - Frontend assumes backend is running and accessible (no robust offline handling)
+
+## Migration Notes
+
+**Migrated from Google Gemini to OpenAI (Dec 2024)**
+- Changed from `gemini-2.0-flash-exp` to `gpt-4o` model
+- Updated service architecture from `GeminiService` to `OpenAIService`
+- Function calling syntax updated from Gemini format to OpenAI format
+- JSON response handling improved with `response_format: { type: 'json_object' }`
