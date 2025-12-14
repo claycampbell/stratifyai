@@ -81,7 +81,7 @@ export class KPIService {
   static async updateKPIWithCalculations(kpiId: string): Promise<void> {
     // Get KPI data
     const kpiResult = await pool.query(
-      `SELECT id, current_value, target_value, at_risk_threshold, off_track_threshold, auto_calculate_status
+      `SELECT id, current_value, target_value, at_risk_threshold, off_track_threshold, auto_calculate_status, status
        FROM kpis WHERE id = $1`,
       [kpiId]
     );
