@@ -309,7 +309,7 @@ When user asks to update a KPI, find its ID above and call update_kpi function w
         console.log('Tool calls:', JSON.stringify(toolCalls, null, 2));
 
         // Convert OpenAI tool calls to Gemini-compatible format
-        const actions = toolCalls.map((call) => {
+        const actions = toolCalls.map((call: any) => {
           if (call.type === 'function') {
             return {
               name: call.function.name,
@@ -317,7 +317,7 @@ When user asks to update a KPI, find its ID above and call update_kpi function w
             };
           }
           return null;
-        }).filter((action): action is { name: string; args: any } => action !== null);
+        }).filter((action: any): action is { name: string; args: any } => action !== null);
 
         return {
           response: responseMessage?.content || 'I will perform the requested actions.',
