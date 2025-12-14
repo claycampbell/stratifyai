@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pool from '../config/database';
 import multer from 'multer';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import KPIService from '../services/kpiService';
 
 const router = Router();
@@ -296,7 +296,10 @@ router.post('/:id/history', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { value, recorded_date, notes } = req.body;
 
+    console.log(`[KPI History] Adding entry for KPI ${id}:`, { value, recorded_date, notes });
+
     if (value === undefined || !recorded_date) {
+      console.log('[KPI History] Validation failed: missing required fields');
       return res.status(400).json({ error: 'value and recorded_date are required' });
     }
 
@@ -305,33 +308,47 @@ router.post('/:id/history', async (req: Request, res: Response) => {
     if (kpiResult.rows.length > 0 && kpiResult.rows[0].validation_rules) {
       const validation = KPIService.validateKPIValue(value, kpiResult.rows[0].validation_rules);
       if (!validation.isValid) {
+        console.log('[KPI History] Validation failed:', validation.errors);
         return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
       }
     }
 
+    console.log('[KPI History] Inserting history entry...');
     const result = await pool.query(
       `INSERT INTO kpi_history (kpi_id, value, recorded_date, notes)
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [id, value, recorded_date, notes || '']
     );
+    console.log('[KPI History] Insert successful:', result.rows[0].id);
 
     // Update current value in KPI
+    console.log('[KPI History] Updating current_value in kpis table...');
     await pool.query(
       `UPDATE kpis SET current_value = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
       [value, id]
     );
+    console.log('[KPI History] Current value updated');
 
     // Auto-calculate status and trend
+    console.log('[KPI History] Calculating status and trend...');
     try {
       await KPIService.updateKPIWithCalculations(id);
+      console.log('[KPI History] Status calculation complete');
     } catch (calcError) {
-      console.error('Error auto-calculating KPI status:', calcError);
+      console.error('[KPI History] Error auto-calculating KPI status:', calcError);
+      // Don't fail the whole request if calculation fails
     }
 
+    console.log('[KPI History] Entry added successfully');
     res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Error adding KPI history:', error);
-    res.status(500).json({ error: 'Failed to add KPI history' });
+  } catch (error: any) {
+    console.error('[KPI History] Error adding KPI history:', error);
+    console.error('[KPI History] Error stack:', error.stack);
+    res.status(500).json({
+      error: 'Failed to add KPI history',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -513,9 +530,9 @@ router.get('/:id/actions', async (req: Request, res: Response) => {
 
     const history = historyResult.rows;
 
-    // Import GeminiService dynamically
-    const { GeminiService } = await import('../services/geminiService');
-    const geminiService = new GeminiService();
+    // Import OpenAIService dynamically
+    const { OpenAIService } = await import('../services/openaiService');
+    const openaiService = new OpenAIService();
 
     // Generate AI recommendations
     const contextData = {
@@ -566,7 +583,7 @@ router.get('/:id/actions', async (req: Request, res: Response) => {
       Return ONLY the JSON, no additional text.
     `;
 
-    const result = await geminiService.chatWithContext(prompt, JSON.stringify(contextData));
+    const result = await openaiService.chatWithContext(prompt, JSON.stringify(contextData));
 
     // Try to extract JSON from the response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
