@@ -72,7 +72,7 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
         <div>
           <h2 className="text-2xl font-bold text-gray-900">AI Strategy Generator</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Generate data-driven strategies using AI and our knowledge base of successful implementations
+            Generate data-driven strategies for college athletics using AI and proven successful approaches
           </p>
         </div>
       </div>
@@ -88,39 +88,57 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
             <textarea
               value={formData.objective}
               onChange={(e) => handleInputChange('objective', e.target.value)}
-              placeholder="What do you want to achieve? (e.g., Increase market share by 15% in the next year)"
+              placeholder="What do you want to achieve? (e.g., Increase football ticket sales by 50%, Improve student-athlete graduation rates to 95%, Expand women's sports programs while maintaining Title IX compliance)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               rows={3}
               required
             />
           </div>
 
-          {/* Industry */}
+          {/* Athletic Conference */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-            <input
-              type="text"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Athletic Conference</label>
+            <select
               value={formData.industry}
               onChange={(e) => handleInputChange('industry', e.target.value)}
-              placeholder="e.g., Technology, Healthcare, Education"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
+            >
+              <option value="">Select conference</option>
+              <option value="Mid-American Conference (MAC)">Mid-American Conference (MAC)</option>
+              <option value="Big Ten Conference">Big Ten Conference</option>
+              <option value="Southeastern Conference (SEC)">Southeastern Conference (SEC)</option>
+              <option value="Atlantic Coast Conference (ACC)">Atlantic Coast Conference (ACC)</option>
+              <option value="Big 12 Conference">Big 12 Conference</option>
+              <option value="Pac-12 Conference">Pac-12 Conference</option>
+              <option value="American Athletic Conference (AAC)">American Athletic Conference (AAC)</option>
+              <option value="Mountain West Conference">Mountain West Conference</option>
+              <option value="Conference USA">Conference USA</option>
+              <option value="Sun Belt Conference">Sun Belt Conference</option>
+              <option value="Independent">Independent</option>
+              <option value="Division II Conference">Division II Conference</option>
+              <option value="Division III Conference">Division III Conference</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
-          {/* Company Size */}
+          {/* Division Level */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company Size</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Division Level & Department Size</label>
             <select
               value={formData.company_size}
               onChange={(e) => handleInputChange('company_size', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
-              <option value="">Select size</option>
-              <option value="startup">Startup (1-50)</option>
-              <option value="small">Small (51-200)</option>
-              <option value="medium">Medium (201-1000)</option>
-              <option value="large">Large (1000+)</option>
-              <option value="enterprise">Enterprise (10000+)</option>
+              <option value="">Select division and size</option>
+              <option value="Division I FBS - Large (20+ sports)">Division I FBS - Large (20+ sports)</option>
+              <option value="Division I FBS - Medium (15-19 sports)">Division I FBS - Medium (15-19 sports)</option>
+              <option value="Division I FCS - Large (18+ sports)">Division I FCS - Large (18+ sports)</option>
+              <option value="Division I FCS - Medium (12-17 sports)">Division I FCS - Medium (12-17 sports)</option>
+              <option value="Division I Non-Football">Division I Non-Football</option>
+              <option value="Division II (10+ sports)">Division II (10+ sports)</option>
+              <option value="Division III (10+ sports)">Division III (10+ sports)</option>
+              <option value="NAIA">NAIA</option>
+              <option value="Junior College">Junior College</option>
             </select>
           </div>
 
@@ -130,7 +148,7 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
             <textarea
               value={formData.current_situation}
               onChange={(e) => handleInputChange('current_situation', e.target.value)}
-              placeholder="Describe your current state (e.g., Market position, team size, current capabilities)"
+              placeholder="Describe your athletic department's current state (e.g., Current attendance levels, student-athlete academic performance, facility conditions, fundraising status, competitive standing in conference)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               rows={2}
             />
@@ -142,7 +160,7 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
             <textarea
               value={formData.constraints}
               onChange={(e) => handleInputChange('constraints', e.target.value)}
-              placeholder="Budget limits, time constraints, regulatory requirements"
+              placeholder="Athletic budget limits, NCAA compliance requirements, Title IX considerations, facility limitations, academic eligibility standards, scholarship limits"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               rows={2}
             />
@@ -154,7 +172,7 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
             <textarea
               value={formData.resources}
               onChange={(e) => handleInputChange('resources', e.target.value)}
-              placeholder="Team, budget, technology, partnerships"
+              placeholder="Coaching staff, athletic trainers, academic support staff, facilities, booster support, media partnerships, sponsorship deals, conference revenue sharing"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               rows={2}
             />
@@ -167,7 +185,7 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
               type="text"
               value={formData.timeframe}
               onChange={(e) => handleInputChange('timeframe', e.target.value)}
-              placeholder="e.g., 6 months, 1 year, 3 years"
+              placeholder="e.g., Single season, One academic year, Multi-year plan, Before next recruitment cycle"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>

@@ -118,20 +118,35 @@ class AIStrategyService {
 - Source: ${s.case_study_source || 'Internal knowledge base'}
       `).join('\n\n');
 
-      // Step 3: Create prompt for Gemini
+      // Step 3: Create prompt for OpenAI with college athletics expertise
       const prompt = `
-You are a world-class strategy consultant helping to develop OGSM (Objectives, Goals, Strategies, Measures) strategies.
+You are a world-class strategy consultant specializing in college athletics and helping to develop OGSM (Objectives, Goals, Strategies, Measures) strategies for athletic departments.
 
-**CLIENT OBJECTIVE:**
+**ATHLETIC DEPARTMENT OBJECTIVE:**
 ${context.objective}
 
-**CLIENT CONTEXT:**
-- Industry: ${context.industry || 'Not specified'}
-- Company Size: ${context.company_size || 'Not specified'}
+**ATHLETIC DEPARTMENT CONTEXT:**
+- Athletic Conference: ${context.industry || 'Not specified'}
+- Division Level & Department Size: ${context.company_size || 'Not specified'}
 - Current Situation: ${context.current_situation || 'Not provided'}
-- Constraints: ${context.constraints || 'None specified'}
-- Available Resources: ${context.resources || 'Not specified'}
+- Constraints (NCAA Compliance, Title IX, Budget, Facilities): ${context.constraints || 'None specified'}
+- Available Resources (Staff, Facilities, Partnerships): ${context.resources || 'Not specified'}
 - Desired Timeframe: ${context.timeframe || 'Not specified'}
+
+**COLLEGE ATHLETICS EXPERTISE:**
+You have deep knowledge of:
+- NCAA regulations, compliance requirements, and eligibility standards across all divisions
+- Title IX compliance and gender equity requirements in college sports
+- Conference dynamics and competitive landscape in college athletics
+- Student-athlete academic support and graduation rate improvement strategies
+- Athletic fundraising, booster engagement, and revenue generation
+- Facility management, capital projects, and infrastructure development
+- Ticket sales, fan engagement, and game day experience enhancement
+- Coaching staff recruitment, retention, and development
+- Recruitment strategies for high-performing student-athletes
+- Media rights, sponsorship deals, and marketing partnerships
+- Sports program management (both revenue and Olympic sports)
+- Academic-athletic balance and student-athlete welfare
 
 **RELEVANT SUCCESSFUL STRATEGIES FROM KNOWLEDGE BASE:**
 ${knowledgeContext || 'No directly relevant examples found in knowledge base.'}
@@ -184,7 +199,7 @@ Example format:
         messages: [
           {
             role: 'system',
-            content: 'You are a world-class strategy consultant. Return ONLY valid JSON objects with a "strategies" array. No additional text or formatting.'
+            content: 'You are a world-class strategy consultant specializing in college athletics. Return ONLY valid JSON objects with a "strategies" array. No additional text or formatting.'
           },
           {
             role: 'user',
