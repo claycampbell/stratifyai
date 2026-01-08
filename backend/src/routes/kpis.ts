@@ -373,6 +373,136 @@ router.get('/:id/history', async (req: Request, res: Response) => {
   }
 });
 
+// Update KPI history entry
+router.put('/:kpiId/history/:historyId', async (req: Request, res: Response) => {
+  try {
+    const { kpiId, historyId } = req.params;
+    const { value, recorded_date, notes } = req.body;
+
+    console.log(`[KPI History] Updating entry ${historyId} for KPI ${kpiId}`);
+
+    // Verify the history entry belongs to this KPI
+    const checkResult = await pool.query(
+      'SELECT * FROM kpi_history WHERE id = $1 AND kpi_id = $2',
+      [historyId, kpiId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'History entry not found' });
+    }
+
+    // Validate if value is provided
+    if (value !== undefined) {
+      try {
+        const kpiResult = await pool.query('SELECT validation_rules FROM kpis WHERE id = $1', [kpiId]);
+        if (kpiResult.rows.length > 0 && kpiResult.rows[0].validation_rules) {
+          const validation = KPIService.validateKPIValue(value, kpiResult.rows[0].validation_rules);
+          if (!validation.isValid) {
+            return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
+          }
+        }
+      } catch (validationError) {
+        console.log('[KPI History] Skipping validation (validation_rules column may not exist)');
+      }
+    }
+
+    // Update the history entry
+    const result = await pool.query(
+      `UPDATE kpi_history
+       SET value = COALESCE($1, value),
+           recorded_date = COALESCE($2, recorded_date),
+           notes = COALESCE($3, notes),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4 AND kpi_id = $5
+       RETURNING *`,
+      [value, recorded_date, notes, historyId, kpiId]
+    );
+
+    // If this was the most recent entry, update the KPI's current value
+    const latestResult = await pool.query(
+      'SELECT * FROM kpi_history WHERE kpi_id = $1 ORDER BY recorded_date DESC LIMIT 1',
+      [kpiId]
+    );
+
+    if (latestResult.rows.length > 0 && latestResult.rows[0].id === historyId) {
+      await pool.query(
+        'UPDATE kpis SET current_value = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [result.rows[0].value, kpiId]
+      );
+
+      // Recalculate status
+      try {
+        await KPIService.updateKPIWithCalculations(kpiId);
+      } catch (calcError) {
+        console.error('[KPI History] Error recalculating KPI status:', calcError);
+      }
+    }
+
+    console.log('[KPI History] Entry updated successfully');
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error('[KPI History] Error updating entry:', error);
+    res.status(500).json({ error: 'Failed to update KPI history entry' });
+  }
+});
+
+// Delete KPI history entry
+router.delete('/:kpiId/history/:historyId', async (req: Request, res: Response) => {
+  try {
+    const { kpiId, historyId } = req.params;
+
+    console.log(`[KPI History] Deleting entry ${historyId} for KPI ${kpiId}`);
+
+    // Verify the history entry belongs to this KPI
+    const checkResult = await pool.query(
+      'SELECT * FROM kpi_history WHERE id = $1 AND kpi_id = $2',
+      [historyId, kpiId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'History entry not found' });
+    }
+
+    // Delete the history entry
+    await pool.query(
+      'DELETE FROM kpi_history WHERE id = $1 AND kpi_id = $2',
+      [historyId, kpiId]
+    );
+
+    // Update KPI's current value to the most recent remaining entry
+    const latestResult = await pool.query(
+      'SELECT * FROM kpi_history WHERE kpi_id = $1 ORDER BY recorded_date DESC LIMIT 1',
+      [kpiId]
+    );
+
+    if (latestResult.rows.length > 0) {
+      await pool.query(
+        'UPDATE kpis SET current_value = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [latestResult.rows[0].value, kpiId]
+      );
+    } else {
+      // No history remaining, set current_value to NULL
+      await pool.query(
+        'UPDATE kpis SET current_value = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [kpiId]
+      );
+    }
+
+    // Recalculate status and trend
+    try {
+      await KPIService.updateKPIWithCalculations(kpiId);
+    } catch (calcError) {
+      console.error('[KPI History] Error recalculating KPI status:', calcError);
+    }
+
+    console.log('[KPI History] Entry deleted successfully');
+    res.json({ message: 'History entry deleted successfully' });
+  } catch (error: any) {
+    console.error('[KPI History] Error deleting entry:', error);
+    res.status(500).json({ error: 'Failed to delete KPI history entry' });
+  }
+});
+
 // Get KPI statistics
 router.get('/:id/stats', async (req: Request, res: Response) => {
   try {
