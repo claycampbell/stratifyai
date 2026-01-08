@@ -156,8 +156,25 @@ For each strategy, provide:
 - success_metrics: Array of 3-5 KPIs to track
 - supporting_evidence: Array of references to similar successful cases
 
-Return ONLY a valid JSON array of strategy objects, no other text:
-[{...}, {...}, {...}]
+Return ONLY a valid JSON object with a "strategies" array. No other text or formatting.
+Example format:
+{
+  "strategies": [
+    {
+      "title": "Strategy name",
+      "description": "Overview",
+      "rationale": "Why it works",
+      "implementation_steps": ["Step 1", "Step 2", ...],
+      "success_probability": 0.75,
+      "estimated_cost": "medium",
+      "timeframe": "6-12 months",
+      "risks": ["Risk 1", "Risk 2"],
+      "required_resources": ["Resource 1", "Resource 2"],
+      "success_metrics": ["Metric 1", "Metric 2"],
+      "supporting_evidence": ["Evidence 1", "Evidence 2"]
+    }
+  ]
+}
 `;
 
       // Step 4: Call OpenAI
@@ -167,7 +184,7 @@ Return ONLY a valid JSON array of strategy objects, no other text:
         messages: [
           {
             role: 'system',
-            content: 'You are a world-class strategy consultant. Return ONLY valid JSON arrays with no additional text or formatting.'
+            content: 'You are a world-class strategy consultant. Return ONLY valid JSON objects with a "strategies" array. No additional text or formatting.'
           },
           {
             role: 'user',
