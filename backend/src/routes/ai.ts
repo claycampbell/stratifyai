@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
-import geminiService from '../services/geminiService';
+import openaiService from '../services/openaiService';
 import philosophyService from '../services/philosophyService';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
@@ -108,7 +108,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
     const systemContext = await gatherSystemContext();
 
     // Generate AI response with action awareness
-    const aiResult = await geminiService.chatWithActionSupport(
+    const aiResult = await openaiService.chatWithActionSupport(
       message,
       chatContext,
       systemContext
@@ -190,7 +190,7 @@ router.post('/chat', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Generate title for new sessions (async, don't wait for it)
     if (isNewSession && !sessionCheck.rows[0]?.title) {
-      geminiService.generateChatTitle(message).then(async (title) => {
+      openaiService.generateChatTitle(message).then(async (title) => {
         try {
           await pool.query(
             'UPDATE chat_sessions SET title = $1 WHERE id = $2',
@@ -620,7 +620,7 @@ router.post('/analyze', async (req: Request, res: Response) => {
     const kpisResult = await pool.query('SELECT * FROM kpis');
 
     // Perform AI analysis
-    const analysis = await geminiService.analyzeStrategicAlignment(
+    const analysis = await openaiService.analyzeStrategicAlignment(
       objectivesResult.rows,
       goalsResult.rows,
       strategiesResult.rows,
@@ -647,7 +647,7 @@ router.post('/reports/generate', async (req: Request, res: Response) => {
     const kpisResult = await pool.query('SELECT * FROM kpis');
 
     // Generate report using AI
-    const reportContent = await geminiService.generateProgressReport(
+    const reportContent = await openaiService.generateProgressReport(
       report_type,
       kpisResult.rows,
       timeframe || 'current period'
@@ -719,7 +719,7 @@ router.post('/recommendations', async (req: Request, res: Response) => {
       KPIs: ${JSON.stringify(kpisResult.rows)}
     `;
 
-    const recommendations = await geminiService.generateRecommendations(context);
+    const recommendations = await openaiService.generateRecommendations(context);
 
     res.json({ recommendations });
   } catch (error) {
@@ -766,7 +766,7 @@ router.post('/chat-philosophy', async (req: Request, res: Response) => {
     const testUserId = userId || '00000000-0000-0000-0000-000000000001';
 
     // Call the philosophy-aware chat method
-    const response = await geminiService.chatWithPhilosophy(
+    const response = await openaiService.chatWithPhilosophy(
       message,
       testUserId,
       true // includeContext
