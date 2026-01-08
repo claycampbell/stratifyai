@@ -198,11 +198,16 @@ Example format:
 
       const responseText = completion.choices[0].message.content || '{"strategies": []}';
       console.log('[AIStrategyService] Response length:', responseText.length);
+      console.log('[AIStrategyService] Response preview:', responseText.substring(0, 500));
 
       // Step 5: Parse the response
       console.log('[AIStrategyService] Parsing response...');
       const strategies = this.parseStrategiesResponse(responseText);
       console.log('[AIStrategyService] Parsed', strategies.length, 'strategies');
+      if (strategies.length === 0) {
+        console.log('[AIStrategyService] WARNING: Parsed 0 strategies from response!');
+        console.log('[AIStrategyService] Full response:', responseText);
+      }
 
       // Step 6: Store the generation for tracking
       console.log('[AIStrategyService] Storing generation...');
