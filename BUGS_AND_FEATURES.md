@@ -85,22 +85,68 @@ await kpisApi.addHistory(kpiId, {
 ---
 
 ### ⚠️ INVESTIGATE - AI Strategy Generator won't load for Clay
-**Status:** Needs testing after AI chat fix
+**Status:** Under investigation
 **Priority:** High
-**Note:** May have been resolved by fixing AI chat 500 error above
+**Note:** Backend is correct, issue is likely database tables or frontend
 
 **Backend Status:**
 - ✅ Endpoint exists: `POST /api/ai-strategy/generate`
-- ✅ Route registered in server.ts
+- ✅ Route registered in server.ts line 74
 - ✅ Backend health check passes
-- ✅ Service implementation exists
-- ✅ Uses OpenAI service (separate from ai.ts chat routes)
+- ✅ Service implementation exists and uses OpenAI (not Gemini)
+- ✅ Frontend component exists: `AIStrategyGenerator.tsx`
+- ✅ Frontend routing configured: `/ai-strategy` in App.tsx
+- ✅ Navigation link present in Layout.tsx
 
-**Next Steps:**
-- Test AI Strategy Generator after AI chat fix deployment
-- If still failing, check authentication/authorization
-- Review browser console for any remaining errors
-- Check Azure logs for OpenAI API errors
+**Possible Root Causes:**
+1. **Database tables not created in production:**
+   - `strategy_knowledge` table (for RAG knowledge base)
+   - `ai_generated_strategies` table (for tracking generations)
+   - `ai_strategy_feedback` table (for feedback)
+   - Tables are defined in `init.sql` but may not have been created in Azure DB
+
+2. **OpenAI API key not set:**
+   - Environment variable `OPENAI_API_KEY` might not be configured in Azure App Service
+
+3. **Frontend navigation/rendering issue:**
+   - Page might not be rendering at all
+   - Component might be failing silently
+
+**Diagnostic Steps:**
+1. **Test if page loads:**
+   - Navigate to https://stratifyai.pro/ai-strategy
+   - Does the page render? Or blank screen?
+
+2. **Check browser console (F12):**
+   - Look for JavaScript errors when clicking "AI Strategy Generator"
+   - Look for failed API calls
+
+3. **Test the endpoint directly:**
+   ```bash
+   curl -X POST https://ogsm-backend-webapp.azurewebsites.net/api/ai-strategy/generate \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -d '{"objective":"Test objective","num_strategies":1}'
+   ```
+
+4. **Check if tables exist in Azure database:**
+   ```sql
+   SELECT tablename FROM pg_tables
+   WHERE schemaname = 'public'
+   AND tablename IN ('strategy_knowledge', 'ai_generated_strategies', 'ai_strategy_feedback');
+   ```
+
+5. **Verify OpenAI API key in Azure:**
+   - Check Azure App Service → Configuration → Application Settings
+   - Ensure `OPENAI_API_KEY` is set
+
+**Fix if tables are missing:**
+If tables don't exist, run the database initialization:
+```sql
+-- Copy relevant sections from backend/src/database/init.sql
+-- Tables: strategy_knowledge, ai_generated_strategies, ai_strategy_feedback
+-- Plus their indexes
+```
 
 ---
 
