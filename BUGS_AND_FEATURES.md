@@ -84,10 +84,10 @@ await kpisApi.addHistory(kpiId, {
 
 ---
 
-### ⚠️ INVESTIGATE - AI Strategy Generator won't load for Clay
-**Status:** Under investigation
+### 🔧 IN PROGRESS - AI Strategy Generator returns empty results
+**Status:** Fix deployed, waiting for Azure propagation
 **Priority:** High
-**Note:** Backend is correct, issue is likely database tables or frontend
+**Note:** Root cause identified and fixed, deployment in progress
 
 **Backend Status:**
 - ✅ Endpoint exists: `POST /api/ai-strategy/generate`
@@ -98,19 +98,16 @@ await kpisApi.addHistory(kpiId, {
 - ✅ Frontend routing configured: `/ai-strategy` in App.tsx
 - ✅ Navigation link present in Layout.tsx
 
-**Possible Root Causes:**
-1. **Database tables not created in production:**
-   - `strategy_knowledge` table (for RAG knowledge base)
-   - `ai_generated_strategies` table (for tracking generations)
-   - `ai_strategy_feedback` table (for feedback)
-   - Tables are defined in `init.sql` but may not have been created in Azure DB
+**Root Cause Identified:**
+- OpenAI prompt format mismatch
+- Prompt asked for JSON array but `response_format: {type: 'json_object'}` forces object
+- OpenAI returned `{"strategies": []}` (empty array in object)
 
-2. **OpenAI API key not set:**
-   - Environment variable `OPENAI_API_KEY` might not be configured in Azure App Service
-
-3. **Frontend navigation/rendering issue:**
-   - Page might not be rendering at all
-   - Component might be failing silently
+**Fix Applied:**
+- Updated prompt to request JSON object with "strategies" array
+- Added example format showing expected structure
+- Updated system prompt to match OpenAI's json_object format
+- Comprehensive logging added for debugging
 
 **Diagnostic Steps:**
 1. **Test if page loads:**
@@ -207,7 +204,41 @@ WHERE owner_email = 'clay@seawolfai.net'
 
 ### 🔔 HIGH PRIORITY
 
-#### 1. Add warning when KPI numbers look suspicious
+#### 1. Customize AI Strategy Generator for College Athletics
+**Status:** Requested
+**Priority:** High
+**Description:** Redesign AI Strategy Generator form to be focused on college athletics context
+
+**Current State:**
+- Generic business strategy form (Industry, Company Size, etc.)
+- Not tailored to college athletics terminology or context
+- Fields don't align with athletic department needs
+
+**Enhancement Needed:**
+- Replace "Industry" with "Athletic Conference" (MAC, Big Ten, etc.)
+- Replace "Company Size" with athletic department context fields:
+  - Number of sports programs
+  - Division level (D1, D2, D3)
+  - Athletic budget range
+- Add athletics-specific context fields:
+  - Primary sports focus (revenue vs Olympic sports)
+  - Facility status/needs
+  - Compliance challenges
+  - Title IX considerations
+- Update example objectives to be athletics-focused:
+  - "Increase football ticket sales by 50%"
+  - "Improve student-athlete graduation rates to 95%"
+  - "Expand women's sports programs while maintaining Title IX compliance"
+- Pre-populate industry context with college athletics knowledge
+
+**Implementation:**
+- Frontend: Update `AIStrategyGenerator.tsx` component form fields
+- Backend: Update prompt context to include college athletics expertise
+- Add athletics-specific examples to knowledge base
+
+---
+
+#### 2. Add warning when KPI numbers look suspicious
 **Status:** Planned
 **Priority:** High
 **Description:** Detect and alert when KPI values don't match expected patterns or reality
