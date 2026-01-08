@@ -6,6 +6,7 @@ const router = Router();
 // Generate strategies based on objective
 router.post('/generate', async (req: Request, res: Response) => {
   try {
+    console.log('[AI Strategy] Received generation request');
     const {
       objective,
       industry,
@@ -17,10 +18,15 @@ router.post('/generate', async (req: Request, res: Response) => {
       num_strategies = 3
     } = req.body;
 
+    console.log('[AI Strategy] Objective:', objective);
+    console.log('[AI Strategy] Number of strategies:', num_strategies);
+
     if (!objective) {
+      console.log('[AI Strategy] ERROR: No objective provided');
       return res.status(400).json({ error: 'Objective is required' });
     }
 
+    console.log('[AI Strategy] Calling aiStrategyService.generateStrategies...');
     const strategies = await aiStrategyService.generateStrategies(
       {
         objective,
@@ -34,14 +40,20 @@ router.post('/generate', async (req: Request, res: Response) => {
       num_strategies
     );
 
+    console.log('[AI Strategy] Successfully generated', strategies.length, 'strategies');
     res.json({
       strategies,
       generated_at: new Date().toISOString(),
       model: 'gpt-4o'
     });
-  } catch (error) {
-    console.error('Error generating strategies:', error);
-    res.status(500).json({ error: 'Failed to generate strategies' });
+  } catch (error: any) {
+    console.error('[AI Strategy] ERROR generating strategies:', error);
+    console.error('[AI Strategy] Error message:', error?.message);
+    console.error('[AI Strategy] Error stack:', error?.stack);
+    res.status(500).json({
+      error: 'Failed to generate strategies',
+      details: error?.message || 'Unknown error'
+    });
   }
 });
 

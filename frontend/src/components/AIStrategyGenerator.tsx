@@ -212,6 +212,27 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
         </div>
       )}
 
+      {/* Empty Result Warning */}
+      {generateMutation.isSuccess && generatedStrategies.length === 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-medium text-yellow-900">No Strategies Generated</h3>
+            <p className="text-sm text-yellow-700 mt-1">
+              The AI was unable to generate strategies for your objective. This might be due to:
+            </p>
+            <ul className="text-sm text-yellow-700 mt-2 list-disc list-inside space-y-1">
+              <li>The objective being too vague or too specific</li>
+              <li>Missing context (try filling in more fields)</li>
+              <li>A temporary issue with the AI service</li>
+            </ul>
+            <p className="text-sm text-yellow-700 mt-2">
+              Try rephrasing your objective or providing more context about your situation.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Generated Strategies */}
       {generatedStrategies.length > 0 && (
         <div className="space-y-4">

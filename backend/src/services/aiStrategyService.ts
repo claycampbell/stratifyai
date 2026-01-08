@@ -94,13 +94,18 @@ class AIStrategyService {
     numStrategies: number = 3
   ): Promise<GeneratedStrategy[]> {
     try {
+      console.log('[AIStrategyService] Starting strategy generation');
+      console.log('[AIStrategyService] Context:', JSON.stringify(context, null, 2));
+
       // Step 1: Retrieve relevant strategies from knowledge base
+      console.log('[AIStrategyService] Searching knowledge base...');
       const relevantStrategies = await this.searchKnowledgeBase(
         context.objective,
         context.industry,
         undefined,
         10
       );
+      console.log('[AIStrategyService] Found', relevantStrategies.length, 'relevant strategies');
 
       // Step 2: Build context for the LLM
       const knowledgeContext = relevantStrategies.map((s, idx) => `
@@ -156,6 +161,7 @@ Return ONLY a valid JSON array of strategy objects, no other text:
 `;
 
       // Step 4: Call OpenAI
+      console.log('[AIStrategyService] Calling OpenAI API...');
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
@@ -171,19 +177,29 @@ Return ONLY a valid JSON array of strategy objects, no other text:
         response_format: { type: 'json_object' },
         temperature: 0.7,
       });
+      console.log('[AIStrategyService] OpenAI API call successful');
 
       const responseText = completion.choices[0].message.content || '{"strategies": []}';
+      console.log('[AIStrategyService] Response length:', responseText.length);
 
       // Step 5: Parse the response
+      console.log('[AIStrategyService] Parsing response...');
       const strategies = this.parseStrategiesResponse(responseText);
+      console.log('[AIStrategyService] Parsed', strategies.length, 'strategies');
 
       // Step 6: Store the generation for tracking
+      console.log('[AIStrategyService] Storing generation...');
       await this.storeGeneration(context, strategies);
+      console.log('[AIStrategyService] Generation complete!');
 
       return strategies;
-    } catch (error) {
-      console.error('Error generating strategies:', error);
-      throw new Error('Failed to generate strategies');
+    } catch (error: any) {
+      console.error('[AIStrategyService] ERROR:', error);
+      console.error('[AIStrategyService] Error name:', error?.name);
+      console.error('[AIStrategyService] Error message:', error?.message);
+      if (error?.code) console.error('[AIStrategyService] Error code:', error.code);
+      if (error?.response) console.error('[AIStrategyService] API response:', error.response);
+      throw new Error('Failed to generate strategies: ' + (error?.message || 'Unknown error'));
     }
   }
 
