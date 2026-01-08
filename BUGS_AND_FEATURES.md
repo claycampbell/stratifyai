@@ -60,48 +60,47 @@ await kpisApi.addHistory(kpiId, {
 
 ---
 
-### ❌ OPEN - AI Strategy Generator won't load for Clay
-**Status:** Needs investigation
+### ✅ FIXED - AI Chief Strategy Officer 500 error
+**Status:** Fixed and deployed
+**Fixed:** 2026-01-08
+**Root Cause:** Backend routes were still using deprecated `geminiService` instead of `openaiService`
+
+**Solution:**
+- Migrated `backend/src/routes/ai.ts` from Gemini to OpenAI service
+- Replaced all 6 method calls:
+  - `chatWithActionSupport()` - AI chat with function calling
+  - `generateChatTitle()` - Automatic chat title generation
+  - `analyzeStrategicAlignment()` - OGSM alignment analysis
+  - `generateProgressReport()` - Progress report generation
+  - `generateRecommendations()` - Strategic recommendations
+  - `chatWithPhilosophy()` - Philosophy-aware responses
+- All AI features now use GPT-4o model consistently
+
+**Impact:**
+- Fixes 500 Internal Server Error on `/api/ai/chat`
+- Resolves "Chat mutation error: ue" in frontend console
+- AI Chief Strategy Officer chat now functional
+- Completes OpenAI migration (resolves mixed service architecture issue)
+
+---
+
+### ⚠️ INVESTIGATE - AI Strategy Generator won't load for Clay
+**Status:** Needs testing after AI chat fix
 **Priority:** High
-**Reported:** User Clay cannot access AI Strategy Generator
+**Note:** May have been resolved by fixing AI chat 500 error above
 
 **Backend Status:**
 - ✅ Endpoint exists: `POST /api/ai-strategy/generate`
 - ✅ Route registered in server.ts
 - ✅ Backend health check passes
 - ✅ Service implementation exists
+- ✅ Uses OpenAI service (separate from ai.ts chat routes)
 
-**Possible Causes:**
-1. Authentication/authorization issue (role-based access)
-2. Frontend routing/navigation issue
-3. User-specific browser cache problem (was issue before)
-4. OpenAI API key or rate limiting issue
-
-**Investigation Needed:**
-- Check user Clay's role and permissions in database
-- Test endpoint directly with Clay's auth token
-- Check browser console for JavaScript errors
-- Review Azure backend logs for errors when Clay attempts access
-
-**SQL to check user:**
-```sql
-SELECT id, email, role, active, created_at
-FROM users
-WHERE email = 'clay@seawolfai.net';
-```
-
----
-
-### ❌ OPEN - AI Chief Strategy Officer won't load for Clay
-**Status:** Needs investigation
-**Priority:** High
-**Related to:** AI Strategy Generator issue (likely same root cause)
-
-**Backend Status:**
-- ✅ AI chat endpoints exist: `POST /api/ai/chat`
-- ✅ Component exists: `AIChatBubble.tsx`
-
-**Investigation Needed:** Same as AI Strategy Generator above
+**Next Steps:**
+- Test AI Strategy Generator after AI chat fix deployment
+- If still failing, check authentication/authorization
+- Review browser console for any remaining errors
+- Check Azure logs for OpenAI API errors
 
 ---
 
