@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { aiStrategyApi } from '@/lib/api';
-import { Sparkles, TrendingUp, AlertTriangle, Target, Clock, DollarSign, CheckCircle, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
-import type { StrategyGenerationContext, GeneratedStrategy, StrategyGenerationResponse } from '@/types';
+import { aiStrategyApi, fiscalPlanningApi } from '@/lib/api';
+import { Sparkles, TrendingUp, AlertTriangle, Target, Clock, DollarSign, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Plus, CalendarCheck } from 'lucide-react';
+import type { StrategyGenerationContext, GeneratedStrategy, StrategyGenerationResponse, FiscalPlanSummary } from '@/types';
 
 interface AIStrategyGeneratorProps {
   onStrategyGenerated?: (strategies: GeneratedStrategy[]) => void;
@@ -21,6 +21,62 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
   const [numStrategies, setNumStrategies] = useState(3);
   const [generatedStrategies, setGeneratedStrategies] = useState<GeneratedStrategy[]>([]);
   const [expandedStrategy, setExpandedStrategy] = useState<number | null>(null);
+  const [activeFiscalPlan, setActiveFiscalPlan] = useState<FiscalPlanSummary | null>(null);
+  const [showPriorityDropdown, setShowPriorityDropdown] = useState<number | null>(null);
+  const [addingToPlan, setAddingToPlan] = useState<number | null>(null);
+
+  // Check for active fiscal plan on component mount
+  useEffect(() => {
+    checkActiveFiscalPlan();
+  }, []);
+
+  const checkActiveFiscalPlan = async () => {
+    try {
+      const planResponse = await fiscalPlanningApi.getActivePlan();
+      if (planResponse.data) {
+        const summaryResponse = await fiscalPlanningApi.getPlanSummary(planResponse.data.id);
+        setActiveFiscalPlan(summaryResponse.data);
+      }
+    } catch (err) {
+      // No active plan - that's OK
+      console.log('No active fiscal plan found');
+    }
+  };
+
+  const handleAddToPlan = async (strategy: GeneratedStrategy, priorityId: string) => {
+    if (!activeFiscalPlan) return;
+
+    const strategyIndex = generatedStrategies.indexOf(strategy);
+    setAddingToPlan(strategyIndex);
+    setShowPriorityDropdown(null);
+
+    try {
+      await fiscalPlanningApi.addStrategy(activeFiscalPlan.plan.id, {
+        priority_id: priorityId,
+        strategy: {
+          title: strategy.title,
+          description: strategy.description,
+          rationale: strategy.rationale,
+          implementation_steps: strategy.implementation_steps,
+          success_probability: strategy.success_probability,
+          estimated_cost: strategy.estimated_cost,
+          timeframe: strategy.timeframe,
+          risks: strategy.risks,
+          required_resources: strategy.required_resources,
+          success_metrics: strategy.success_metrics,
+          supporting_evidence: strategy.supporting_evidence,
+        },
+      });
+
+      // Show success message
+      alert(`Strategy added to ${activeFiscalPlan.plan.fiscal_year} plan!`);
+    } catch (err) {
+      console.error('Error adding strategy to plan:', err);
+      alert('Failed to add strategy to plan');
+    } finally {
+      setAddingToPlan(null);
+    }
+  };
 
   const generateMutation = useMutation({
     mutationFn: (context: StrategyGenerationContext & { num_strategies: number }) =>
@@ -76,6 +132,23 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
           </p>
         </div>
       </div>
+
+      {/* Fiscal Plan Banner */}
+      {activeFiscalPlan && (
+        <div className="bg-gradient-to-r from-primary-50 to-purple-50 border-2 border-primary-200 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <CalendarCheck className="h-6 w-6 text-primary-600" />
+            <div>
+              <h3 className="font-semibold text-gray-900">
+                🎯 Generating strategies for {activeFiscalPlan.plan.fiscal_year} Plan
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Generated strategies can be added directly to your fiscal year plan using the "Add to Plan" button
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Input Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
@@ -276,6 +349,54 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
                     </div>
                     <p className="text-gray-700">{strategy.description}</p>
                   </div>
+
+                  {/* Add to Plan Button */}
+                  {activeFiscalPlan && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowPriorityDropdown(showPriorityDropdown === index ? null : index)}
+                        disabled={addingToPlan === index}
+                        className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+                      >
+                        {addingToPlan === index ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Adding...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="h-4 w-4" />
+                            <span>Add to Plan</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Priority Dropdown */}
+                      {showPriorityDropdown === index && (
+                        <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                          <div className="p-2">
+                            <p className="text-xs font-medium text-gray-600 px-2 py-1">Select Priority:</p>
+                            {activeFiscalPlan.priorities.map((priority) => (
+                              <button
+                                key={priority.id}
+                                onClick={() => handleAddToPlan(strategy, priority.id)}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <div className="flex-shrink-0 w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                                    {priority.priority_number}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{priority.title}</p>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Metrics Row */}

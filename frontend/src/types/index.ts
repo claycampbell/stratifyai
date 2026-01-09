@@ -529,3 +529,140 @@ export interface ValidationResult {
   violations: NonNegotiable[];
   autoReject: boolean;
 }
+
+// Fiscal Year Planning Types
+
+export interface FiscalYearPlan {
+  id: string;
+  fiscal_year: string;  // 'FY27', 'FY28'
+  status: 'draft' | 'active' | 'completed' | 'archived';
+  start_date?: string;
+  end_date?: string;
+  created_by?: string;
+  created_at: string;
+  activated_at?: string;
+  completed_at?: string;
+}
+
+export interface FiscalYearPriority {
+  id: string;
+  fiscal_plan_id: string;
+  priority_number: 1 | 2 | 3;
+  title: string;
+  description?: string;
+  imported_from_ogsm_id?: string;
+  created_at: string;
+}
+
+export interface FiscalYearDraftStrategy {
+  id: string;
+  fiscal_plan_id: string;
+  priority_id: string;
+
+  // Strategy details from AI generation
+  title: string;
+  description?: string;
+  rationale?: string;
+  implementation_steps?: string[];
+  success_probability?: number;
+  estimated_cost?: string;
+  timeframe?: string;
+  risks?: string[];
+  required_resources?: string[];
+  success_metrics?: string[];
+  supporting_evidence?: string[];
+
+  // Workflow status
+  status: 'draft' | 'under_review' | 'approved' | 'rejected' | 'converted';
+  converted_to_ogsm_id?: string;
+
+  // Metadata
+  generated_from_ai: boolean;
+  ai_generation_id?: string;
+  created_at: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  review_notes?: string;
+}
+
+// Request/Response types for fiscal planning API
+
+export interface CreateFiscalPlanRequest {
+  fiscal_year: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface UpdatePrioritiesRequest {
+  priorities: {
+    priority_number: 1 | 2 | 3;
+    title: string;
+    description?: string;
+  }[];
+}
+
+export interface ImportPriorityRequest {
+  ogsm_component_id: string;
+  priority_number: 1 | 2 | 3;
+}
+
+export interface AddStrategyRequest {
+  priority_id: string;
+  strategy: {
+    title: string;
+    description?: string;
+    rationale?: string;
+    implementation_steps?: string[];
+    success_probability?: number;
+    estimated_cost?: string;
+    timeframe?: string;
+    risks?: string[];
+    required_resources?: string[];
+    success_metrics?: string[];
+    supporting_evidence?: string[];
+  };
+  ai_generation_id?: string;
+}
+
+export interface BulkAddStrategiesRequest {
+  strategies: AddStrategyRequest[];
+}
+
+export interface UpdateStrategyStatusRequest {
+  status: 'draft' | 'under_review' | 'approved' | 'rejected';
+  review_notes?: string;
+}
+
+export interface ConvertToOGSMRequest {
+  strategy_ids: string[];
+}
+
+export interface ConvertToOGSMResponse {
+  created_objectives: OGSMComponent[];
+  created_strategies: OGSMComponent[];
+  created_kpis: KPI[];
+}
+
+export interface FiscalPlanSummary {
+  plan: FiscalYearPlan;
+  priorities: (FiscalYearPriority & {
+    strategy_count: number;
+  })[];
+  draft_strategies_count: {
+    draft: number;
+    under_review: number;
+    approved: number;
+    rejected: number;
+    converted: number;
+  };
+  converted_count: number;
+  kpis_created_count: number;
+}
+
+// Extended types for full plan view with relationships
+
+export interface FiscalYearPlanWithRelations extends FiscalYearPlan {
+  priorities: (FiscalYearPriority & {
+    strategies: FiscalYearDraftStrategy[];
+  })[];
+}

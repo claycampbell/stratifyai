@@ -17,6 +17,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import StaffPlans from './pages/StaffPlans';
 import StaffPlanDetail from './pages/StaffPlanDetail';
 import PhilosophyManagement from './pages/PhilosophyManagement';
+import FiscalPlanningDashboard from './pages/FiscalPlanningDashboard';
+import FiscalPlanSetup from './pages/FiscalPlanSetup';
 
 const queryClient = new QueryClient();
 
@@ -50,6 +52,8 @@ function App() {
               <Route path="staff-plans" element={<StaffPlans />} />
               <Route path="staff-plans/:id" element={<StaffPlanDetail />} />
               <Route path="philosophy" element={<PhilosophyManagement />} />
+              <Route path="fiscal-planning" element={<FiscalPlanningDashboard />} />
+              <Route path="fiscal-planning/setup/:planId" element={<FiscalPlanSetup />} />
               <Route
                 path="admin"
                 element={

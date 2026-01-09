@@ -30,6 +30,9 @@ import staffPlansRouter from './routes/staffPlans';
 import planItemsRouter from './routes/planItems';
 import planLinksRouter from './routes/planLinks';
 
+// Fiscal Year Planning routes
+import fiscalPlanningRouter from './routes/fiscalPlanning';
+
 // Philosophy routes
 import philosophyRouter from './routes/philosophy';
 
@@ -86,6 +89,9 @@ app.use('/api/dependencies', dependenciesRouter);
 app.use('/api/staff-plans', staffPlansRouter);
 app.use('/api/plan-items', planItemsRouter);
 app.use('/api/plan-links', planLinksRouter);
+
+// Fiscal Year Planning API Routes
+app.use('/api/fiscal-planning', fiscalPlanningRouter);
 
 // Philosophy API Routes
 app.use('/api/philosophy', philosophyRouter);

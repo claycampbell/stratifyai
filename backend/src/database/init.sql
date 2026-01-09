@@ -509,3 +509,75 @@ CREATE INDEX IF NOT EXISTS idx_ai_generated_strategies_component ON ai_generated
 CREATE INDEX IF NOT EXISTS idx_ai_generated_strategies_created ON ai_generated_strategies(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_strategy_feedback_generated ON ai_strategy_feedback(generated_strategy_id);
 CREATE INDEX IF NOT EXISTS idx_ai_strategy_feedback_rating ON ai_strategy_feedback(rating DESC);
+
+-- ============================================================
+-- FISCAL YEAR PLANNING MODE TABLES
+-- ============================================================
+
+-- Table: fiscal_year_plans
+-- Tracks each planning cycle (FY27, FY28, etc.)
+CREATE TABLE IF NOT EXISTS fiscal_year_plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  fiscal_year VARCHAR(10) NOT NULL UNIQUE,  -- 'FY27', 'FY28'
+  status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'completed', 'archived')),
+  start_date DATE,
+  end_date DATE,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  activated_at TIMESTAMP,
+  completed_at TIMESTAMP
+);
+
+-- Table: fiscal_year_priorities
+-- Stores the 3 core objectives for each fiscal year
+CREATE TABLE IF NOT EXISTS fiscal_year_priorities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  fiscal_plan_id UUID NOT NULL REFERENCES fiscal_year_plans(id) ON DELETE CASCADE,
+  priority_number INTEGER NOT NULL CHECK (priority_number BETWEEN 1 AND 3),
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  imported_from_ogsm_id UUID REFERENCES ogsm_components(id), -- If carried over from last year
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(fiscal_plan_id, priority_number)
+);
+
+-- Table: fiscal_year_draft_strategies
+-- Holds AI-generated strategies before conversion to formal OGSM
+CREATE TABLE IF NOT EXISTS fiscal_year_draft_strategies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  fiscal_plan_id UUID NOT NULL REFERENCES fiscal_year_plans(id) ON DELETE CASCADE,
+  priority_id UUID NOT NULL REFERENCES fiscal_year_priorities(id) ON DELETE CASCADE,
+
+  -- Strategy details from AI generation
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  rationale TEXT,
+  implementation_steps JSONB, -- Array of steps
+  success_probability DECIMAL(3,2),
+  estimated_cost VARCHAR(20),
+  timeframe VARCHAR(100),
+  risks JSONB,
+  required_resources JSONB,
+  success_metrics JSONB, -- Array of KPI names that will be created
+  supporting_evidence JSONB,
+
+  -- Workflow status
+  status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'under_review', 'approved', 'rejected', 'converted')),
+  converted_to_ogsm_id UUID REFERENCES ogsm_components(id), -- Link to final OGSM strategy
+
+  -- Metadata
+  generated_from_ai BOOLEAN DEFAULT TRUE,
+  ai_generation_id UUID,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at TIMESTAMP,
+  reviewed_by UUID REFERENCES users(id),
+  review_notes TEXT
+);
+
+-- Indexes for fiscal year planning
+CREATE INDEX IF NOT EXISTS idx_fiscal_plans_status ON fiscal_year_plans(status);
+CREATE INDEX IF NOT EXISTS idx_fiscal_plans_fiscal_year ON fiscal_year_plans(fiscal_year);
+CREATE INDEX IF NOT EXISTS idx_fiscal_priorities_plan ON fiscal_year_priorities(fiscal_plan_id);
+CREATE INDEX IF NOT EXISTS idx_draft_strategies_plan ON fiscal_year_draft_strategies(fiscal_plan_id);
+CREATE INDEX IF NOT EXISTS idx_draft_strategies_priority ON fiscal_year_draft_strategies(priority_id);
+CREATE INDEX IF NOT EXISTS idx_draft_strategies_status ON fiscal_year_draft_strategies(status);

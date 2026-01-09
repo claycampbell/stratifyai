@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   X,
   Calendar,
-  BookOpen
+  BookOpen,
+  CalendarCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import AIChatBubble from './AIChatBubble';
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'AI Strategy Platform', path: '/ogsm', icon: Target },
   { name: 'KPIs', path: '/kpis', icon: TrendingUp },
   { name: 'AI Strategy Generator', path: '/ai-strategy', icon: Sparkles },
+  { name: 'Fiscal Year Planning', path: '/fiscal-planning', icon: CalendarCheck },
   { name: 'Strategic Planning', path: '/strategic-planning', icon: Layers },
   { name: '30/60/90 Day Plans', path: '/staff-plans', icon: Calendar },
   { name: 'RMU Philosophy', path: '/philosophy', icon: BookOpen },

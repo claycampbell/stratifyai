@@ -413,4 +413,50 @@ export const philosophyApi = {
     api.get('/philosophy/validations/recent', { params: { limit } }),
 };
 
+// Fiscal Year Planning API
+export const fiscalPlanningApi = {
+  // Plans
+  createPlan: (data: { fiscal_year: string; start_date?: string; end_date?: string }) =>
+    api.post('/fiscal-planning/plans', data),
+  getActivePlan: () => api.get('/fiscal-planning/plans/active'),
+  getPlanById: (planId: string) => api.get(`/fiscal-planning/plans/${planId}`),
+  getPlanSummary: (planId: string) => api.get(`/fiscal-planning/plans/${planId}/summary`),
+  activatePlan: (planId: string) => api.post(`/fiscal-planning/plans/${planId}/activate`),
+
+  // Priorities
+  updatePriorities: (planId: string, data: {
+    priorities: Array<{
+      priority_number: 1 | 2 | 3;
+      title: string;
+      description?: string;
+    }>
+  }) => api.post(`/fiscal-planning/plans/${planId}/priorities`, data),
+  importPriority: (planId: string, data: {
+    ogsm_component_id: string;
+    priority_number: 1 | 2 | 3;
+  }) => api.post(`/fiscal-planning/plans/${planId}/priorities/import`, data),
+
+  // Strategies
+  addStrategy: (planId: string, data: {
+    priority_id: string;
+    strategy: any;
+    ai_generation_id?: string;
+  }) => api.post(`/fiscal-planning/plans/${planId}/strategies`, data),
+  bulkAddStrategies: (planId: string, data: {
+    strategies: Array<{
+      priority_id: string;
+      strategy: any;
+      ai_generation_id?: string;
+    }>
+  }) => api.post(`/fiscal-planning/plans/${planId}/strategies/bulk`, data),
+  updateStrategyStatus: (strategyId: string, data: {
+    status: 'draft' | 'under_review' | 'approved' | 'rejected';
+    review_notes?: string;
+  }) => api.patch(`/fiscal-planning/strategies/${strategyId}`, data),
+
+  // Conversion
+  convertToOGSM: (planId: string, data: { strategy_ids: string[] }) =>
+    api.post(`/fiscal-planning/plans/${planId}/convert-to-ogsm`, data),
+};
+
 export default api;
