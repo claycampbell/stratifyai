@@ -1,52 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, TrendingUp, CheckCircle, Clock, AlertCircle, Plus, PlayCircle } from 'lucide-react';
+import { Target, TrendingUp, CheckCircle, AlertCircle, Plus, Calendar, Edit } from 'lucide-react';
 import { fiscalPlanningApi } from '../lib/api';
 import { FiscalPlanSummary } from '../types';
 
 export default function FiscalPlanningDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [activePlan, setActivePlan] = useState<FiscalPlanSummary | null>(null);
+  const [plans, setPlans] = useState<FiscalPlanSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadActivePlan();
+    loadAllPlans();
   }, []);
 
-  const loadActivePlan = async () => {
+  const loadAllPlans = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Try to get active plan first
-      try {
-        const planResponse = await fiscalPlanningApi.getActivePlan();
-        if (planResponse.data) {
-          const summaryResponse = await fiscalPlanningApi.getPlanSummary(planResponse.data.id);
-          setActivePlan(summaryResponse.data);
-          return;
-        }
-      } catch (err: any) {
-        // No active plan, check for draft plans
-        if (err.response?.status === 404) {
-          // Try to get the most recent draft plan
-          const allPlansResponse = await fiscalPlanningApi.getAllPlans();
-          if (allPlansResponse.data && allPlansResponse.data.length > 0) {
-            const latestPlan = allPlansResponse.data[0]; // Assuming sorted by created_at DESC
-            const summaryResponse = await fiscalPlanningApi.getPlanSummary(latestPlan.id);
-            setActivePlan(summaryResponse.data);
-            return;
-          }
-        }
-      }
+      // Get all plans
+      const allPlansResponse = await fiscalPlanningApi.getAllPlans();
 
-      // No plans found at all
-      setActivePlan(null);
+      if (allPlansResponse.data && allPlansResponse.data.length > 0) {
+        // Load summary for each plan
+        const planSummaries = await Promise.all(
+          allPlansResponse.data.map(async (plan: any) => {
+            const summaryResponse = await fiscalPlanningApi.getPlanSummary(plan.id);
+            return summaryResponse.data;
+          })
+        );
+        setPlans(planSummaries);
+      } else {
+        setPlans([]);
+      }
     } catch (err: any) {
-      console.error('Error loading fiscal plan:', err);
+      console.error('Error loading fiscal plans:', err);
       setError('Failed to load fiscal planning data');
-      setActivePlan(null);
+      setPlans([]);
     } finally {
       setLoading(false);
     }
@@ -56,31 +47,37 @@ export default function FiscalPlanningDashboard() {
     navigate('/fiscal-planning/setup/new');
   };
 
-  const handleContinuePlan = () => {
-    // Navigate to AI Strategy Generator to create strategies
-    navigate('/ai-strategy');
+  const handleViewPlan = (planId: string) => {
+    navigate(`/fiscal-planning/plan/${planId}`);
   };
 
-  const handleViewStrategies = () => {
-    if (activePlan) {
-      navigate(`/fiscal-planning/strategies/${activePlan.plan.id}`);
-    }
-  };
-
-  const handleActivatePlan = async () => {
-    if (!activePlan) return;
-
+  const handleActivatePlan = async (plan: FiscalPlanSummary) => {
     try {
       setLoading(true);
-      await fiscalPlanningApi.activatePlan(activePlan.plan.id);
-      // Reload the plan to show updated status
-      await loadActivePlan();
-      alert(`${activePlan.plan.fiscal_year} plan has been activated!`);
+      await fiscalPlanningApi.activatePlan(plan.plan.id);
+      // Reload all plans to show updated status
+      await loadAllPlans();
+      alert(`${plan.plan.fiscal_year} plan has been activated!`);
     } catch (err: any) {
       console.error('Error activating plan:', err);
       alert(err.response?.data?.error || 'Failed to activate plan');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'draft':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800';
+      case 'archived':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -103,8 +100,8 @@ export default function FiscalPlanningDashboard() {
     );
   }
 
-  // No active plan - show getting started
-  if (!activePlan) {
+  // No plans - show getting started
+  if (plans.length === 0) {
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -214,222 +211,139 @@ export default function FiscalPlanningDashboard() {
     );
   }
 
-  // Active plan exists - show dashboard
-  const totalStrategies = Object.values(activePlan.draft_strategies_count).reduce((a, b) => a + b, 0);
-  const completionPercentage = totalStrategies > 0
-    ? Math.round((activePlan.converted_count / totalStrategies) * 100)
-    : 0;
-
+  // Plans exist - show list
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center space-x-3">
-            <h1 className="text-3xl font-bold text-gray-900">{activePlan.plan.fiscal_year} Strategic Plan</h1>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              activePlan.plan.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
-              activePlan.plan.status === 'active' ? 'bg-green-100 text-green-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
-              {activePlan.plan.status.charAt(0).toUpperCase() + activePlan.plan.status.slice(1)}
-            </span>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900">Fiscal Year Planning</h1>
           <p className="text-gray-600 mt-2">
-            {activePlan.plan.start_date && activePlan.plan.end_date && (
-              <>
-                {new Date(activePlan.plan.start_date).toLocaleDateString()} - {new Date(activePlan.plan.end_date).toLocaleDateString()}
-              </>
-            )}
+            Manage your fiscal year strategic plans
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          {activePlan.plan.status === 'draft' && (
-            <button
-              onClick={handleActivatePlan}
-              disabled={loading}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+        <button
+          onClick={handleCreateNewPlan}
+          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+        >
+          <Plus className="h-5 w-5" />
+          <span>New Fiscal Plan</span>
+        </button>
+      </div>
+
+      {/* Plans Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {plans.map((planSummary) => {
+          const totalStrategies = Object.values(planSummary.draft_strategies_count).reduce((a, b) => a + b, 0);
+          const completionPercentage = totalStrategies > 0
+            ? Math.round((planSummary.converted_count / totalStrategies) * 100)
+            : 0;
+
+          return (
+            <div
+              key={planSummary.plan.id}
+              className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleViewPlan(planSummary.plan.id)}
             >
-              <CheckCircle className="h-5 w-5" />
-              <span>Activate Plan</span>
-            </button>
-          )}
-          <button
-            onClick={handleContinuePlan}
-            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-          >
-            <PlayCircle className="h-5 w-5" />
-            <span>Generate Strategies</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Progress Overview */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Planning Progress</h2>
-        <div className="space-y-4">
-          {/* Progress Bar */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Overall Completion</span>
-              <span className="text-sm font-medium text-gray-900">{completionPercentage}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className="bg-primary-600 h-3 rounded-full transition-all duration-500"
-                style={{ width: `${completionPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Steps */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className={`h-6 w-6 ${activePlan.priorities.length === 3 ? 'text-green-600' : 'text-gray-300'}`} />
-              <div>
-                <p className="text-sm font-medium text-gray-900">Priorities Defined</p>
-                <p className="text-xs text-gray-600">{activePlan.priorities.length}/3 priorities</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <Clock className={`h-6 w-6 ${totalStrategies > 0 ? 'text-blue-600' : 'text-gray-300'}`} />
-              <div>
-                <p className="text-sm font-medium text-gray-900">Strategies Generated</p>
-                <p className="text-xs text-gray-600">{totalStrategies} strategies</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <TrendingUp className={`h-6 w-6 ${activePlan.converted_count > 0 ? 'text-purple-600' : 'text-gray-300'}`} />
-              <div>
-                <p className="text-sm font-medium text-gray-900">Converted to OGSM</p>
-                <p className="text-xs text-gray-600">{activePlan.converted_count} converted</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Draft</h3>
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <Clock className="h-4 w-4 text-gray-600" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{activePlan.draft_strategies_count.draft}</p>
-          <p className="text-xs text-gray-500 mt-1">Strategies in draft</p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Under Review</h3>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{activePlan.draft_strategies_count.under_review}</p>
-          <p className="text-xs text-gray-500 mt-1">Being reviewed</p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">Approved</h3>
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{activePlan.draft_strategies_count.approved}</p>
-          <p className="text-xs text-gray-500 mt-1">Ready to convert</p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-600">KPIs Created</h3>
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <TrendingUp className="h-4 w-4 text-purple-600" />
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{activePlan.kpis_created_count}</p>
-          <p className="text-xs text-gray-500 mt-1">Performance metrics</p>
-        </div>
-      </div>
-
-      {/* Priorities */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Core Priorities</h2>
-        <div className="space-y-4">
-          {activePlan.priorities.map((priority) => (
-            <div key={priority.id} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {priority.priority_number}
+              {/* Plan Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary-100 rounded-lg">
+                    <Calendar className="h-5 w-5 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{priority.title}</h3>
-                    {priority.description && (
-                      <p className="text-sm text-gray-600 mt-1">{priority.description}</p>
-                    )}
-                    <p className="text-xs text-gray-500 mt-2">
-                      {priority.strategy_count} {priority.strategy_count === 1 ? 'strategy' : 'strategies'}
-                    </p>
+                    <h3 className="text-lg font-bold text-gray-900">{planSummary.plan.fiscal_year}</h3>
+                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium mt-1 ${getStatusColor(planSummary.plan.status)}`}>
+                      {planSummary.plan.status.charAt(0).toUpperCase() + planSummary.plan.status.slice(1)}
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
 
-        {activePlan.priorities.length < 3 && (
-          <button
-            onClick={handleContinuePlan}
-            className="mt-4 text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center space-x-1"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add More Priorities</span>
-          </button>
-        )}
-      </div>
+              {/* Date Range */}
+              {planSummary.plan.start_date && planSummary.plan.end_date && (
+                <p className="text-sm text-gray-600 mb-4">
+                  {new Date(planSummary.plan.start_date).toLocaleDateString()} - {new Date(planSummary.plan.end_date).toLocaleDateString()}
+                </p>
+              )}
 
-      {/* Quick Actions */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            onClick={() => navigate('/ai-strategy')}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-primary-500 hover:bg-primary-50 transition-colors text-left"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
+              {/* Priorities */}
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Priorities ({planSummary.priorities.length}/3)</h4>
+                <div className="space-y-1">
+                  {planSummary.priorities.map((priority) => (
+                    <div key={priority.id} className="flex items-center space-x-2 text-sm">
+                      <div className="flex-shrink-0 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                        {priority.priority_number}
+                      </div>
+                      <span className="text-gray-700 truncate">{priority.title}</span>
+                      <span className="text-gray-500 text-xs">({priority.strategy_count})</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Generate Strategies</h3>
-                <p className="text-sm text-gray-600">Use AI to create strategies for your priorities</p>
+
+              {/* Progress */}
+              {totalStrategies > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-gray-600">Progress</span>
+                    <span className="font-medium text-gray-900">{completionPercentage}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-primary-600 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${completionPercentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="text-center p-2 bg-gray-50 rounded">
+                  <div className="text-lg font-bold text-gray-900">{totalStrategies}</div>
+                  <div className="text-xs text-gray-600">Strategies</div>
+                </div>
+                <div className="text-center p-2 bg-gray-50 rounded">
+                  <div className="text-lg font-bold text-green-600">{planSummary.draft_strategies_count.approved}</div>
+                  <div className="text-xs text-gray-600">Approved</div>
+                </div>
+                <div className="text-center p-2 bg-gray-50 rounded">
+                  <div className="text-lg font-bold text-blue-600">{planSummary.kpis_created_count}</div>
+                  <div className="text-xs text-gray-600">KPIs</div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleViewPlan(planSummary.plan.id);
+                  }}
+                  className="flex-1 bg-primary-600 text-white px-3 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium flex items-center justify-center space-x-1"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>Edit</span>
+                </button>
+                {planSummary.plan.status === 'draft' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleActivatePlan(planSummary);
+                    }}
+                    className="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center justify-center space-x-1"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Activate</span>
+                  </button>
+                )}
               </div>
             </div>
-          </button>
-
-          <button
-            onClick={handleViewStrategies}
-            className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-primary-500 hover:bg-primary-50 transition-colors text-left"
-          >
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Target className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Review Strategies</h3>
-                <p className="text-sm text-gray-600">View and manage your draft strategies</p>
-              </div>
-            </div>
-          </button>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
