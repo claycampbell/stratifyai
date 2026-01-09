@@ -418,6 +418,7 @@ export const fiscalPlanningApi = {
   // Plans
   createPlan: (data: { fiscal_year: string; start_date?: string; end_date?: string }) =>
     api.post('/fiscal-planning/plans', data),
+  getAllPlans: () => api.get('/fiscal-planning/plans'),
   getActivePlan: () => api.get('/fiscal-planning/plans/active'),
   getPlanById: (planId: string) => api.get(`/fiscal-planning/plans/${planId}`),
   getPlanSummary: (planId: string) => api.get(`/fiscal-planning/plans/${planId}/summary`),

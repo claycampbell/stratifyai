@@ -40,6 +40,17 @@ router.post('/plans', async (req: Request, res: Response) => {
   }
 });
 
+// Get all fiscal year plans
+router.get('/plans', async (req: Request, res: Response) => {
+  try {
+    const plans = await fiscalPlanningService.getAllPlans();
+    res.json(plans);
+  } catch (error) {
+    console.error('Error getting fiscal plans:', error);
+    res.status(500).json({ error: 'Failed to get fiscal plans' });
+  }
+});
+
 // Get active fiscal year plan
 router.get('/plans/active', async (req: Request, res: Response) => {
   try {

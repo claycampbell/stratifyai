@@ -30,6 +30,16 @@ class FiscalPlanningService {
   }
 
   /**
+   * Get all fiscal year plans
+   */
+  async getAllPlans(): Promise<FiscalYearPlan[]> {
+    const result = await pool.query(
+      `SELECT * FROM fiscal_year_plans ORDER BY created_at DESC`
+    );
+    return result.rows;
+  }
+
+  /**
    * Get active fiscal year plan
    */
   async getActivePlan(): Promise<FiscalYearPlan | null> {

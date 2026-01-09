@@ -19,24 +19,34 @@ export default function FiscalPlanningDashboard() {
       setLoading(true);
       setError(null);
 
-      // Try to get active plan
-      const planResponse = await fiscalPlanningApi.getActivePlan();
+      // Try to get active plan first
+      try {
+        const planResponse = await fiscalPlanningApi.getActivePlan();
+        if (planResponse.data) {
+          const summaryResponse = await fiscalPlanningApi.getPlanSummary(planResponse.data.id);
+          setActivePlan(summaryResponse.data);
+          return;
+        }
+      } catch (err: any) {
+        // No active plan, check for draft plans
+        if (err.response?.status === 404) {
+          // Try to get the most recent draft plan
+          const allPlansResponse = await fiscalPlanningApi.getAllPlans();
+          if (allPlansResponse.data && allPlansResponse.data.length > 0) {
+            const latestPlan = allPlansResponse.data[0]; // Assuming sorted by created_at DESC
+            const summaryResponse = await fiscalPlanningApi.getPlanSummary(latestPlan.id);
+            setActivePlan(summaryResponse.data);
+            return;
+          }
+        }
+      }
 
-      if (planResponse.data) {
-        // Get summary for the active plan
-        const summaryResponse = await fiscalPlanningApi.getPlanSummary(planResponse.data.id);
-        setActivePlan(summaryResponse.data);
-      } else {
-        setActivePlan(null);
-      }
+      // No plans found at all
+      setActivePlan(null);
     } catch (err: any) {
-      if (err.response?.status === 404) {
-        // No active plan found - this is OK
-        setActivePlan(null);
-      } else {
-        console.error('Error loading active plan:', err);
-        setError('Failed to load fiscal planning data');
-      }
+      console.error('Error loading fiscal plan:', err);
+      setError('Failed to load fiscal planning data');
+      setActivePlan(null);
     } finally {
       setLoading(false);
     }
@@ -55,6 +65,23 @@ export default function FiscalPlanningDashboard() {
   const handleViewStrategies = () => {
     if (activePlan) {
       navigate(`/fiscal-planning/strategies/${activePlan.plan.id}`);
+    }
+  };
+
+  const handleActivatePlan = async () => {
+    if (!activePlan) return;
+
+    try {
+      setLoading(true);
+      await fiscalPlanningApi.activatePlan(activePlan.plan.id);
+      // Reload the plan to show updated status
+      await loadActivePlan();
+      alert(`${activePlan.plan.fiscal_year} plan has been activated!`);
+    } catch (err: any) {
+      console.error('Error activating plan:', err);
+      alert(err.response?.data?.error || 'Failed to activate plan');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -218,13 +245,25 @@ export default function FiscalPlanningDashboard() {
           </p>
         </div>
 
-        <button
-          onClick={handleContinuePlan}
-          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-        >
-          <PlayCircle className="h-5 w-5" />
-          <span>Continue Planning</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          {activePlan.plan.status === 'draft' && (
+            <button
+              onClick={handleActivatePlan}
+              disabled={loading}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+            >
+              <CheckCircle className="h-5 w-5" />
+              <span>Activate Plan</span>
+            </button>
+          )}
+          <button
+            onClick={handleContinuePlan}
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+          >
+            <PlayCircle className="h-5 w-5" />
+            <span>Continue Planning</span>
+          </button>
+        </div>
       </div>
 
       {/* Progress Overview */}
