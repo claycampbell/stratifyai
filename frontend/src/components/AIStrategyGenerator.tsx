@@ -36,14 +36,28 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
 
   const checkActiveFiscalPlan = async () => {
     try {
-      const planResponse = await fiscalPlanningApi.getActivePlan();
-      if (planResponse.data) {
-        const summaryResponse = await fiscalPlanningApi.getPlanSummary(planResponse.data.id);
+      // First try to get active plan
+      const activePlanResponse = await fiscalPlanningApi.getActivePlan();
+      if (activePlanResponse.data) {
+        const summaryResponse = await fiscalPlanningApi.getPlanSummary(activePlanResponse.data.id);
+        setActiveFiscalPlan(summaryResponse.data);
+        return;
+      }
+    } catch (err) {
+      console.log('No active fiscal plan found');
+    }
+
+    try {
+      // If no active plan, get the most recent draft plan
+      const allPlansResponse = await fiscalPlanningApi.getAllPlans();
+      if (allPlansResponse.data && allPlansResponse.data.length > 0) {
+        // Get the first plan (most recent, since they're ordered by created_at DESC)
+        const mostRecentPlan = allPlansResponse.data[0];
+        const summaryResponse = await fiscalPlanningApi.getPlanSummary(mostRecentPlan.id);
         setActiveFiscalPlan(summaryResponse.data);
       }
     } catch (err) {
-      // No active plan - that's OK
-      console.log('No active fiscal plan found');
+      console.log('No fiscal plans found');
     }
   };
 
@@ -173,10 +187,10 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
             <CalendarCheck className="h-6 w-6 text-primary-600" />
             <div>
               <h3 className="font-semibold text-gray-900">
-                🎯 Generating strategies for {activeFiscalPlan.plan.fiscal_year} Plan
+                🎯 Building {activeFiscalPlan.plan.fiscal_year} Plan
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Generated strategies can be added directly to your fiscal year plan using the "Add to Plan" button
+                Add strategies to your plan, then create KPIs from their success metrics to build a complete strategic plan
               </p>
             </div>
           </div>
