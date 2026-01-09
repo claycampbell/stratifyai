@@ -515,6 +515,75 @@ class FiscalPlanningService {
   }
 
   /**
+   * Create KPIs from a draft strategy's success metrics
+   */
+  async createKPIsFromStrategy(
+    strategyId: string,
+    kpis: {
+      name: string;
+      target_value?: number;
+      frequency: string;
+      unit?: string;
+    }[]
+  ): Promise<KPI[]> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Get the strategy with its OGSM conversion status
+      const strategyResult = await client.query(
+        `SELECT id, fiscal_plan_id, converted_to_ogsm_id FROM fiscal_year_draft_strategies WHERE id = $1`,
+        [strategyId]
+      );
+
+      if (strategyResult.rows.length === 0) {
+        throw new Error('Draft strategy not found');
+      }
+
+      const strategy = strategyResult.rows[0];
+      const createdKPIs: KPI[] = [];
+
+      // Create each KPI
+      for (const kpi of kpis) {
+        const result = await client.query(
+          `INSERT INTO kpis
+           (ogsm_component_id, source_strategy_id, name, target_value, unit, frequency, status)
+           VALUES ($1, $2, $3, $4, $5, $6, 'on_track')
+           RETURNING *`,
+          [
+            strategy.converted_to_ogsm_id || null, // Link to OGSM if converted
+            strategyId, // Always track source strategy
+            kpi.name,
+            kpi.target_value || null,
+            kpi.unit || null,
+            kpi.frequency
+          ]
+        );
+        createdKPIs.push(result.rows[0]);
+      }
+
+      await client.query('COMMIT');
+      return createdKPIs;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Get count of KPIs created from a strategy
+   */
+  async getStrategyKPIsCount(strategyId: string): Promise<number> {
+    const result = await pool.query(
+      `SELECT COUNT(*) as count FROM kpis WHERE source_strategy_id = $1`,
+      [strategyId]
+    );
+    return parseInt(result.rows[0].count) || 0;
+  }
+
+  /**
    * Helper to parse JSONB fields in draft strategy
    */
   private parseDraftStrategy(row: any): FiscalYearDraftStrategy {

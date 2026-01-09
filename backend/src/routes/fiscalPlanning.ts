@@ -283,4 +283,52 @@ router.get('/plans/:planId/summary', async (req: Request, res: Response) => {
   }
 });
 
+// Create KPIs from a draft strategy's success metrics
+router.post('/strategies/:strategyId/create-kpis', async (req: Request, res: Response) => {
+  try {
+    const { strategyId } = req.params;
+    const { kpis } = req.body;
+
+    if (!kpis || !Array.isArray(kpis) || kpis.length === 0) {
+      return res.status(400).json({ error: 'kpis array with at least one KPI is required' });
+    }
+
+    // Validate each KPI
+    for (const kpi of kpis) {
+      if (!kpi.name || !kpi.frequency) {
+        return res.status(400).json({ error: 'Each KPI must have a name and frequency' });
+      }
+    }
+
+    const createdKPIs = await fiscalPlanningService.createKPIsFromStrategy(strategyId, kpis);
+
+    res.status(201).json({
+      created_kpis: createdKPIs,
+      message: `Successfully created ${createdKPIs.length} KPI${createdKPIs.length !== 1 ? 's' : ''}`
+    });
+  } catch (error: any) {
+    console.error('Error creating KPIs from strategy:', error);
+
+    if (error.message === 'Draft strategy not found') {
+      return res.status(404).json({ error: 'Draft strategy not found' });
+    }
+
+    res.status(500).json({ error: 'Failed to create KPIs from strategy' });
+  }
+});
+
+// Get count of KPIs created from a strategy
+router.get('/strategies/:strategyId/kpis/count', async (req: Request, res: Response) => {
+  try {
+    const { strategyId } = req.params;
+
+    const count = await fiscalPlanningService.getStrategyKPIsCount(strategyId);
+
+    res.json({ count });
+  } catch (error) {
+    console.error('Error getting strategy KPIs count:', error);
+    res.status(500).json({ error: 'Failed to get KPIs count' });
+  }
+});
+
 export default router;

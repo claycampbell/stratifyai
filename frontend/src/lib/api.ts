@@ -458,6 +458,18 @@ export const fiscalPlanningApi = {
   // Conversion
   convertToOGSM: (planId: string, data: { strategy_ids: string[] }) =>
     api.post(`/fiscal-planning/plans/${planId}/convert-to-ogsm`, data),
+
+  // KPIs from strategies
+  createKPIsFromStrategy: (strategyId: string, data: {
+    kpis: Array<{
+      name: string;
+      target_value?: number;
+      frequency: string;
+      unit?: string;
+    }>
+  }) => api.post(`/fiscal-planning/strategies/${strategyId}/create-kpis`, data),
+  getStrategyKPIsCount: (strategyId: string) =>
+    api.get(`/fiscal-planning/strategies/${strategyId}/kpis/count`),
 };
 
 export default api;

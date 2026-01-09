@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { aiStrategyApi, fiscalPlanningApi } from '@/lib/api';
-import { Sparkles, TrendingUp, AlertTriangle, Target, Clock, DollarSign, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Plus, CalendarCheck } from 'lucide-react';
+import { Sparkles, TrendingUp, AlertTriangle, Target, Clock, DollarSign, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Plus, CalendarCheck, BarChart3, ExternalLink } from 'lucide-react';
 import type { StrategyGenerationContext, GeneratedStrategy, StrategyGenerationResponse, FiscalPlanSummary } from '@/types';
+import CreateKPIsModal from './CreateKPIsModal';
 
 interface AIStrategyGeneratorProps {
   onStrategyGenerated?: (strategies: GeneratedStrategy[]) => void;
@@ -24,6 +25,9 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
   const [activeFiscalPlan, setActiveFiscalPlan] = useState<FiscalPlanSummary | null>(null);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState<number | null>(null);
   const [addingToPlan, setAddingToPlan] = useState<number | null>(null);
+  const [addedStrategyIds, setAddedStrategyIds] = useState<Map<number, string>>(new Map());
+  const [strategyKPICounts, setStrategyKPICounts] = useState<Map<string, number>>(new Map());
+  const [createKPIsModalStrategy, setCreateKPIsModalStrategy] = useState<{ index: number; strategyId: string; strategy: GeneratedStrategy } | null>(null);
 
   // Check for active fiscal plan on component mount
   useEffect(() => {
@@ -51,7 +55,7 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
     setShowPriorityDropdown(null);
 
     try {
-      await fiscalPlanningApi.addStrategy(activeFiscalPlan.plan.id, {
+      const response = await fiscalPlanningApi.addStrategy(activeFiscalPlan.plan.id, {
         priority_id: priorityId,
         strategy: {
           title: strategy.title,
@@ -67,6 +71,18 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
           supporting_evidence: strategy.supporting_evidence,
         },
       });
+
+      // Track the added strategy ID
+      const addedStrategy = response.data;
+      setAddedStrategyIds(prev => new Map(prev).set(strategyIndex, addedStrategy.id));
+
+      // Fetch initial KPI count
+      try {
+        const countResponse = await fiscalPlanningApi.getStrategyKPIsCount(addedStrategy.id);
+        setStrategyKPICounts(prev => new Map(prev).set(addedStrategy.id, countResponse.data.count));
+      } catch (countErr) {
+        console.error('Error fetching KPI count:', countErr);
+      }
 
       // Show success message
       alert(`Strategy added to ${activeFiscalPlan.plan.fiscal_year} plan!`);
@@ -101,6 +117,23 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
 
   const handleInputChange = (field: keyof StrategyGenerationContext, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleOpenCreateKPIsModal = (index: number, strategyId: string, strategy: GeneratedStrategy) => {
+    setCreateKPIsModalStrategy({ index, strategyId, strategy });
+  };
+
+  const handleKPIsCreated = async (kpisCount: number) => {
+    if (!createKPIsModalStrategy) return;
+
+    // Update KPI count
+    setStrategyKPICounts(prev => new Map(prev).set(createKPIsModalStrategy.strategyId, kpisCount));
+
+    // Show success message
+    alert(`Successfully created ${kpisCount} KPI${kpisCount !== 1 ? 's' : ''} from strategy!`);
+
+    // Close modal
+    setCreateKPIsModalStrategy(null);
   };
 
   const getCostColor = (cost: string) => {
@@ -350,51 +383,85 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
                     <p className="text-gray-700">{strategy.description}</p>
                   </div>
 
-                  {/* Add to Plan Button */}
+                  {/* Action Buttons */}
                   {activeFiscalPlan && (
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowPriorityDropdown(showPriorityDropdown === index ? null : index)}
-                        disabled={addingToPlan === index}
-                        className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
-                      >
-                        {addingToPlan === index ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Adding...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4" />
-                            <span>Add to Plan</span>
-                          </>
-                        )}
-                      </button>
+                    <div className="flex flex-col items-end space-y-2">
+                      {/* Add to Plan Button */}
+                      {!addedStrategyIds.has(index) ? (
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowPriorityDropdown(showPriorityDropdown === index ? null : index)}
+                            disabled={addingToPlan === index}
+                            className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+                          >
+                            {addingToPlan === index ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                <span>Adding...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4" />
+                                <span>Add to Plan</span>
+                              </>
+                            )}
+                          </button>
 
-                      {/* Priority Dropdown */}
-                      {showPriorityDropdown === index && (
-                        <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                          <div className="p-2">
-                            <p className="text-xs font-medium text-gray-600 px-2 py-1">Select Priority:</p>
-                            {activeFiscalPlan.priorities.map((priority) => (
-                              <button
-                                key={priority.id}
-                                onClick={() => handleAddToPlan(strategy, priority.id)}
-                                className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <div className="flex-shrink-0 w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                                    {priority.priority_number}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 truncate">{priority.title}</p>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
+                          {/* Priority Dropdown */}
+                          {showPriorityDropdown === index && (
+                            <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                              <div className="p-2">
+                                <p className="text-xs font-medium text-gray-600 px-2 py-1">Select Priority:</p>
+                                {activeFiscalPlan.priorities.map((priority) => (
+                                  <button
+                                    key={priority.id}
+                                    onClick={() => handleAddToPlan(strategy, priority.id)}
+                                    className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+                                  >
+                                    <div className="flex items-center space-x-2">
+                                      <div className="flex-shrink-0 w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                                        {priority.priority_number}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate">{priority.title}</p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-700">Added to Plan</span>
                         </div>
                       )}
+
+                      {/* Create/View KPIs Button */}
+                      {addedStrategyIds.has(index) && strategy.success_metrics && strategy.success_metrics.length > 0 && (() => {
+                        const strategyId = addedStrategyIds.get(index)!;
+                        const kpiCount = strategyKPICounts.get(strategyId) || 0;
+
+                        return kpiCount > 0 ? (
+                          <a
+                            href="/kpis"
+                            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            <span>View KPIs ({kpiCount})</span>
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenCreateKPIsModal(index, strategyId, strategy)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                            <span>Create KPIs ({strategy.success_metrics.length})</span>
+                          </button>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -545,6 +612,22 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
             </div>
           ))}
         </div>
+      )}
+
+      {/* Create KPIs Modal */}
+      {createKPIsModalStrategy && (
+        <CreateKPIsModal
+          strategy={{
+            ...createKPIsModalStrategy.strategy,
+            id: createKPIsModalStrategy.strategyId,
+            fiscal_plan_id: activeFiscalPlan?.plan.id || '',
+            priority_id: '',
+            status: 'draft',
+          } as any}
+          isOpen={true}
+          onClose={() => setCreateKPIsModalStrategy(null)}
+          onSuccess={handleKPIsCreated}
+        />
       )}
     </div>
   );

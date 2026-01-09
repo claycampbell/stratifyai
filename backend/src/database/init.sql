@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS ogsm_components (
 CREATE TABLE IF NOT EXISTS kpis (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ogsm_component_id UUID REFERENCES ogsm_components(id) ON DELETE CASCADE,
+    source_strategy_id UUID REFERENCES fiscal_year_draft_strategies(id) ON DELETE SET NULL, -- Track which fiscal strategy created this KPI
     name VARCHAR(255) NOT NULL,
     description TEXT,
     target_value DECIMAL,
@@ -449,6 +450,7 @@ CREATE INDEX IF NOT EXISTS idx_ogsm_components_parent ON ogsm_components(parent_
 CREATE INDEX IF NOT EXISTS idx_kpis_status ON kpis(status);
 CREATE INDEX IF NOT EXISTS idx_kpis_tags ON kpis USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_kpis_owner ON kpis(owner_email);
+CREATE INDEX IF NOT EXISTS idx_kpis_source_strategy ON kpis(source_strategy_id);
 CREATE INDEX IF NOT EXISTS idx_kpi_history_date ON kpi_history(recorded_date DESC);
 CREATE INDEX IF NOT EXISTS idx_kpi_history_kpi ON kpi_history(kpi_id, recorded_date DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id, created_at);
