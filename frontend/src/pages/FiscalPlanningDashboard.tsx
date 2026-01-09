@@ -57,9 +57,8 @@ export default function FiscalPlanningDashboard() {
   };
 
   const handleContinuePlan = () => {
-    if (activePlan) {
-      navigate(`/fiscal-planning/plan/${activePlan.plan.id}`);
-    }
+    // Navigate to AI Strategy Generator to create strategies
+    navigate('/ai-strategy');
   };
 
   const handleViewStrategies = () => {
@@ -261,7 +260,7 @@ export default function FiscalPlanningDashboard() {
             className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
           >
             <PlayCircle className="h-5 w-5" />
-            <span>Continue Planning</span>
+            <span>Generate Strategies</span>
           </button>
         </div>
       </div>
