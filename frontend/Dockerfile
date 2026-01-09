@@ -12,6 +12,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Set API URL for production (build-time environment variable)
+ARG VITE_API_URL=https://ogsm-backend-webapp.azurewebsites.net/api
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application
 RUN npm run build
 
