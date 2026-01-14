@@ -239,9 +239,12 @@ router.post('/plans/:planId/convert-to-ogsm', async (req: Request, res: Response
     const result = await fiscalPlanningService.convertToOGSM(planId, strategy_ids);
 
     res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error converting strategies to OGSM:', error);
-    res.status(500).json({ error: 'Failed to convert strategies to OGSM' });
+    res.status(500).json({
+      error: 'Failed to convert strategies to OGSM',
+      details: error.message
+    });
   }
 });
 
