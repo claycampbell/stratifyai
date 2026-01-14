@@ -100,9 +100,10 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
 
       // Show success message
       alert(`Strategy added to ${activeFiscalPlan.plan.fiscal_year} plan!`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error adding strategy to plan:', err);
-      alert('Failed to add strategy to plan');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to add strategy to plan';
+      alert(`Failed to add strategy to plan: ${errorMessage}`);
     } finally {
       setAddingToPlan(null);
     }

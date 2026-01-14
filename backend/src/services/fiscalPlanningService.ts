@@ -587,13 +587,27 @@ class FiscalPlanningService {
    * Helper to parse JSONB fields in draft strategy
    */
   private parseDraftStrategy(row: any): FiscalYearDraftStrategy {
+    const parseField = (field: any) => {
+      if (field === null || field === undefined) return [];
+      if (Array.isArray(field)) return field;
+      if (typeof field === 'string') {
+        try {
+          return JSON.parse(field);
+        } catch (e) {
+          console.error(`Error parsing JSON field: ${field}`, e);
+          return [];
+        }
+      }
+      return [];
+    };
+
     return {
       ...row,
-      implementation_steps: row.implementation_steps ? JSON.parse(row.implementation_steps) : [],
-      risks: row.risks ? JSON.parse(row.risks) : [],
-      required_resources: row.required_resources ? JSON.parse(row.required_resources) : [],
-      success_metrics: row.success_metrics ? JSON.parse(row.success_metrics) : [],
-      supporting_evidence: row.supporting_evidence ? JSON.parse(row.supporting_evidence) : []
+      implementation_steps: parseField(row.implementation_steps),
+      risks: parseField(row.risks),
+      required_resources: parseField(row.required_resources),
+      success_metrics: parseField(row.success_metrics),
+      supporting_evidence: parseField(row.supporting_evidence)
     };
   }
 }

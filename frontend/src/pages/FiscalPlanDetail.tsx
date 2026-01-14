@@ -199,7 +199,8 @@ export default function FiscalPlanDetail() {
           {plan.priorities.map((priority) => (
             <div
               key={priority.id}
-              className="bg-gradient-to-r from-primary-50 to-purple-50 border border-primary-200 rounded-lg p-4"
+              className="bg-gradient-to-r from-primary-50 to-purple-50 border border-primary-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => navigate(`/fiscal-planning/setup/${plan.plan.id}`)}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3 flex-1">
@@ -241,7 +242,10 @@ export default function FiscalPlanDetail() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow cursor-pointer">
+        <div 
+          className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => navigate(`/fiscal-planning/setup/${plan.plan.id}`)}
+        >
           <div className="flex items-start space-x-4">
             <div className="p-3 bg-green-100 rounded-lg">
               <CheckCircle className="h-6 w-6 text-green-600" />
@@ -251,7 +255,6 @@ export default function FiscalPlanDetail() {
               <p className="text-sm text-gray-600">
                 Review and approve generated strategies before converting them to formal OGSM components
               </p>
-              <p className="text-xs text-gray-500 mt-2">Coming soon</p>
             </div>
           </div>
         </div>
