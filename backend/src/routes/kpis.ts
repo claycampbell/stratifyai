@@ -645,6 +645,104 @@ router.get('/:id/forecast', async (req: Request, res: Response) => {
   }
 });
 
+// Get KPIs by fiscal plan ID
+router.get('/by-fiscal-plan/:planId', async (req: Request, res: Response) => {
+  try {
+    const { planId } = req.params;
+
+    // Query KPIs that were created from strategies belonging to this fiscal plan
+    const result = await pool.query(
+      `SELECT DISTINCT k.*
+       FROM kpis k
+       INNER JOIN fiscal_year_draft_strategies s ON k.source_strategy_id = s.id
+       INNER JOIN fiscal_year_priorities p ON s.priority_id = p.id
+       WHERE p.fiscal_plan_id = $1
+       ORDER BY k.created_at DESC`,
+      [planId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching KPIs by fiscal plan:', error);
+    res.status(500).json({ error: 'Failed to fetch KPIs by fiscal plan' });
+  }
+});
+
+// Copy KPIs from one fiscal plan to another
+router.post('/copy-to-fiscal-plan', async (req: Request, res: Response) => {
+  try {
+    const { source_plan_id, target_plan_id, kpi_ids } = req.body;
+
+    if (!source_plan_id || !target_plan_id || !kpi_ids || !Array.isArray(kpi_ids) || kpi_ids.length === 0) {
+      return res.status(400).json({ error: 'source_plan_id, target_plan_id, and kpi_ids array are required' });
+    }
+
+    const copiedKPIs = [];
+    const errors = [];
+
+    for (const kpiId of kpi_ids) {
+      try {
+        // Get the original KPI
+        const kpiResult = await pool.query('SELECT * FROM kpis WHERE id = $1', [kpiId]);
+
+        if (kpiResult.rows.length === 0) {
+          errors.push({ kpi_id: kpiId, error: 'KPI not found' });
+          continue;
+        }
+
+        const originalKPI = kpiResult.rows[0];
+
+        // Create a copy of the KPI (without source_strategy_id since it belongs to old plan)
+        const copyResult = await pool.query(
+          `INSERT INTO kpis (
+            ogsm_component_id,
+            category_id,
+            name,
+            description,
+            target_value,
+            current_value,
+            unit,
+            frequency,
+            status,
+            ownership,
+            persons_responsible
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          RETURNING *`,
+          [
+            originalKPI.ogsm_component_id,
+            originalKPI.category_id,
+            originalKPI.name + ` (FY Copy)`, // Mark as copied
+            originalKPI.description,
+            originalKPI.target_value,
+            null, // Reset current_value for new year
+            originalKPI.unit,
+            originalKPI.frequency,
+            'on_track', // Reset status for new year
+            originalKPI.ownership,
+            originalKPI.persons_responsible
+          ]
+        );
+
+        copiedKPIs.push(copyResult.rows[0]);
+      } catch (error: any) {
+        errors.push({ kpi_id: kpiId, error: error.message });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      copied_count: copiedKPIs.length,
+      error_count: errors.length,
+      copied_kpis: copiedKPIs,
+      errors: errors
+    });
+  } catch (error) {
+    console.error('Error copying KPIs to fiscal plan:', error);
+    res.status(500).json({ error: 'Failed to copy KPIs to fiscal plan' });
+  }
+});
+
 // Get AI-powered next best actions for KPI
 router.get('/:id/actions', async (req: Request, res: Response) => {
   try {

@@ -1,12 +1,11 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { kpisApi, kpiCategoriesApi } from '@/lib/api';
+import { kpisApi, kpiCategoriesApi, fiscalPlanningApi } from '@/lib/api';
 import { KPICategory } from '@/types';
-import { Plus, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows, Settings } from 'lucide-react';
+import { Plus, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows, Settings, Copy } from 'lucide-react';
 import KPIDetailModal from '@/components/KPIDetailModal';
 import KPITemplatesBrowser from '@/components/KPITemplatesBrowser';
 import KPIViews from '@/components/KPIViews';
-import KPICategoryTabs from '@/components/KPICategoryTabs';
 import CategoryManagementModal from '@/components/CategoryManagementModal';
 import { usePreference } from '@/contexts/UserPreferencesContext';
 
@@ -17,9 +16,10 @@ export default function KPIs() {
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showCategoryManagement, setShowCategoryManagement] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [personFilter, setPersonFilter] = useState<string>('all');
+  const [fiscalPlanFilter, setFiscalPlanFilter] = useState<string>('all');
   const [importStatus, setImportStatus] = useState<{
     show: boolean;
     message: string;
@@ -41,15 +41,28 @@ export default function KPIs() {
 
   const queryClient = useQueryClient();
 
+  // Fetch KPIs - either all or filtered by fiscal plan
   const { data: kpis, isLoading } = useQuery({
-    queryKey: ['kpis'],
-    queryFn: () => kpisApi.getAll().then((res) => res.data),
+    queryKey: ['kpis', fiscalPlanFilter],
+    queryFn: () => {
+      if (fiscalPlanFilter === 'all') {
+        return kpisApi.getAll().then((res) => res.data);
+      } else {
+        return kpisApi.getByFiscalPlan(fiscalPlanFilter).then((res) => res.data);
+      }
+    },
   });
 
   // Fetch categories for selector
   const { data: categories } = useQuery<KPICategory[]>({
     queryKey: ['kpi-categories'],
     queryFn: () => kpiCategoriesApi.getAll().then((res) => res.data),
+  });
+
+  // Fetch fiscal plans for filter dropdown
+  const { data: fiscalPlans } = useQuery({
+    queryKey: ['fiscal-plans'],
+    queryFn: () => fiscalPlanningApi.getAllPlans().then((res) => res.data),
   });
 
   // Extract unique ownership/persons from KPIs
@@ -74,13 +87,6 @@ export default function KPIs() {
     if (!kpis) return [];
 
     return kpis.filter((kpi: any) => {
-      // Category filter
-      if (categoryFilter !== null) {
-        if (kpi.category_id !== categoryFilter) {
-          return false;
-        }
-      }
-
       // Status filter
       if (statusFilter !== 'all' && kpi.status !== statusFilter) {
         return false;
@@ -100,7 +106,7 @@ export default function KPIs() {
 
       return true;
     });
-  }, [kpis, categoryFilter, statusFilter, personFilter]);
+  }, [kpis, statusFilter, personFilter]);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => kpisApi.create(data),
@@ -286,6 +292,15 @@ export default function KPIs() {
             </button>
           </div>
 
+          {kpis && kpis.length > 0 && fiscalPlanFilter !== 'all' && (
+            <button
+              onClick={() => setShowCopyModal(true)}
+              className="btn bg-purple-600 hover:bg-purple-700 text-white flex items-center"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy to New Year
+            </button>
+          )}
           {kpis && kpis.length > 0 && (
             <button
               onClick={handleDeleteAll}
@@ -335,21 +350,29 @@ export default function KPIs() {
         </div>
       </div>
 
-      {/* Category Tabs */}
-      {kpis && kpis.length > 0 && (
-        <KPICategoryTabs
-          selectedCategoryId={categoryFilter}
-          onSelectCategory={setCategoryFilter}
-          kpis={kpis}
-        />
-      )}
-
       {/* Filters Section */}
       <div className="card">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-gray-500" />
             <span className="font-medium text-gray-700">Filters:</span>
+          </div>
+
+          {/* Fiscal Plan Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-600">Fiscal Plan:</label>
+            <select
+              value={fiscalPlanFilter}
+              onChange={(e) => setFiscalPlanFilter(e.target.value)}
+              className="text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 py-1.5 px-3"
+            >
+              <option value="all">All KPIs</option>
+              {fiscalPlans?.map((plan: any) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.fiscal_year} ({plan.status})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Status Filter */}
@@ -385,9 +408,20 @@ export default function KPIs() {
           </div>
 
           {/* Active Filters Display & Clear */}
-          {(statusFilter !== 'all' || personFilter !== 'all' || categoryFilter !== null) && (
+          {(statusFilter !== 'all' || personFilter !== 'all' || fiscalPlanFilter !== 'all') && (
             <>
               <div className="flex items-center gap-2">
+                {fiscalPlanFilter !== 'all' && (
+                  <span className="inline-flex items-center px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+                    Plan: {fiscalPlans?.find((p: any) => p.id === fiscalPlanFilter)?.fiscal_year}
+                    <button
+                      onClick={() => setFiscalPlanFilter('all')}
+                      className="ml-1 hover:text-purple-900"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
                 {statusFilter !== 'all' && (
                   <span className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
                     Status: {statusFilter.replace('_', ' ')}
@@ -415,7 +449,7 @@ export default function KPIs() {
                 onClick={() => {
                   setStatusFilter('all');
                   setPersonFilter('all');
-                  setCategoryFilter(null);
+                  setFiscalPlanFilter('all');
                 }}
                 className="text-sm text-gray-600 hover:text-gray-900 underline"
               >
@@ -425,7 +459,7 @@ export default function KPIs() {
           )}
 
           {/* Results Count */}
-          <div className={`text-sm text-gray-600 ${statusFilter === 'all' && personFilter === 'all' && categoryFilter === null ? 'ml-auto' : ''}`}>
+          <div className={`text-sm text-gray-600 ${statusFilter === 'all' && personFilter === 'all' ? 'ml-auto' : ''}`}>
             Showing {filteredKpis?.length || 0} of {kpis?.length || 0} KPIs
           </div>
         </div>
@@ -639,6 +673,172 @@ export default function KPIs() {
         isOpen={showCategoryManagement}
         onClose={() => setShowCategoryManagement(false)}
       />
+
+      {/* Copy KPIs to New Year Modal */}
+      {showCopyModal && (
+        <CopyKPIsModal
+          sourcePlanId={fiscalPlanFilter}
+          kpis={filteredKpis || []}
+          onClose={() => setShowCopyModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Copy KPIs Modal Component
+interface CopyKPIsModalProps {
+  sourcePlanId: string;
+  kpis: any[];
+  onClose: () => void;
+}
+
+function CopyKPIsModal({ sourcePlanId, kpis, onClose }: CopyKPIsModalProps) {
+  const [selectedKPIs, setSelectedKPIs] = useState<string[]>([]);
+  const [targetPlanId, setTargetPlanId] = useState<string>('');
+  const [copying, setCopying] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Get fiscal plans
+  const { data: fiscalPlans } = useQuery({
+    queryKey: ['fiscal-plans'],
+    queryFn: () => fiscalPlanningApi.getAllPlans().then((res) => res.data),
+  });
+
+  // Filter out current plan from target options
+  const targetPlans = fiscalPlans?.filter((p: any) => p.id !== sourcePlanId) || [];
+
+  // Select all KPIs by default
+  useMemo(() => {
+    if (kpis.length > 0 && selectedKPIs.length === 0) {
+      setSelectedKPIs(kpis.map((kpi: any) => kpi.id));
+    }
+  }, [kpis, selectedKPIs.length]);
+
+  const handleCopy = async () => {
+    if (!targetPlanId || selectedKPIs.length === 0) {
+      alert('Please select a target fiscal plan and at least one KPI');
+      return;
+    }
+
+    try {
+      setCopying(true);
+      const response = await kpisApi.copyToFiscalPlan(sourcePlanId, targetPlanId, selectedKPIs);
+
+      queryClient.invalidateQueries({ queryKey: ['kpis'] });
+
+      alert(`Successfully copied ${response.data.copied_count} KPI(s) to the new fiscal year!`);
+      onClose();
+    } catch (err: any) {
+      console.error('Error copying KPIs:', err);
+      alert(err.response?.data?.error || 'Failed to copy KPIs');
+    } finally {
+      setCopying(false);
+    }
+  };
+
+  const toggleKPI = (kpiId: string) => {
+    setSelectedKPIs(prev =>
+      prev.includes(kpiId)
+        ? prev.filter(id => id !== kpiId)
+        : [...prev, kpiId]
+    );
+  };
+
+  const selectAll = () => {
+    setSelectedKPIs(kpis.map((kpi: any) => kpi.id));
+  };
+
+  const deselectAll = () => {
+    setSelectedKPIs([]);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Copy KPIs to New Fiscal Year</h3>
+        <p className="text-gray-600 mb-4">
+          Select KPIs to copy to a different fiscal plan. KPIs will be copied with reset current values and "on_track" status.
+        </p>
+
+        {/* Target Plan Selector */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Target Fiscal Plan<span className="text-red-500">*</span>
+          </label>
+          <select
+            value={targetPlanId}
+            onChange={(e) => setTargetPlanId(e.target.value)}
+            className="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 py-2 px-3"
+          >
+            <option value="">Select a fiscal plan...</option>
+            {targetPlans.map((plan: any) => (
+              <option key={plan.id} value={plan.id}>
+                {plan.fiscal_year} ({plan.status})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* KPI Selection */}
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Select KPIs to Copy ({selectedKPIs.length} selected)
+            </label>
+            <div className="flex gap-2">
+              <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">
+                Select All
+              </button>
+              <button onClick={deselectAll} className="text-xs text-gray-600 hover:underline">
+                Deselect All
+              </button>
+            </div>
+          </div>
+          <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto p-3 space-y-2">
+            {kpis.map((kpi: any) => (
+              <label key={kpi.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedKPIs.includes(kpi.id)}
+                  onChange={() => toggleKPI(kpi.id)}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-sm">{kpi.name}</div>
+                  {kpi.description && (
+                    <div className="text-xs text-gray-500 truncate">{kpi.description}</div>
+                  )}
+                </div>
+                <div className="text-xs text-gray-600">
+                  {kpi.target_value} {kpi.unit}
+                </div>
+              </label>
+            ))}
+            {kpis.length === 0 && (
+              <p className="text-sm text-gray-500 text-center py-4">No KPIs available to copy</p>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="btn btn-secondary"
+            disabled={copying}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCopy}
+            className="btn bg-purple-600 hover:bg-purple-700 text-white"
+            disabled={copying || !targetPlanId || selectedKPIs.length === 0}
+          >
+            {copying ? 'Copying...' : `Copy ${selectedKPIs.length} KPI(s)`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

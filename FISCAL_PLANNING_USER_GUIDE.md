@@ -250,13 +250,6 @@ Shows overall completion: (Converted Strategies / Total Strategies) × 100%
 - Verify you've selected at least one KPI
 
 ---
-
-## 📞 Need Help?
-
-- **Documentation:** See CLAUDE.md in project root
-- **Feature Requests:** Contact your system administrator
-- **Technical Issues:** Check backend logs or contact IT support
-
 ---
 
 ## 🎓 Key Concepts

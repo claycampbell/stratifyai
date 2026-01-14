@@ -76,6 +76,13 @@ export const kpisApi = {
   getStats: (id: string) => api.get(`/kpis/${id}/stats`),
   getForecast: (id: string, periods?: number) => api.get(`/kpis/${id}/forecast`, { params: { periods } }),
   getActions: (id: string) => api.get(`/kpis/${id}/actions`),
+  getByFiscalPlan: (planId: string) => api.get(`/kpis/by-fiscal-plan/${planId}`),
+  copyToFiscalPlan: (sourcePlanId: string, targetPlanId: string, kpiIds: string[]) =>
+    api.post('/kpis/copy-to-fiscal-plan', {
+      source_plan_id: sourcePlanId,
+      target_plan_id: targetPlanId,
+      kpi_ids: kpiIds,
+    }),
   importFromCSV: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

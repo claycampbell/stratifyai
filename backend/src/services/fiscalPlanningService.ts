@@ -372,10 +372,10 @@ class FiscalPlanningService {
             : (draftStrategy.success_metrics ? JSON.parse(draftStrategy.success_metrics) : []);
           for (const metricName of successMetrics) {
             const kpiResult = await client.query(
-              `INSERT INTO kpis (ogsm_component_id, name, frequency, status)
-               VALUES ($1, $2, 'monthly', 'on_track')
+              `INSERT INTO kpis (ogsm_component_id, source_strategy_id, name, frequency, status)
+               VALUES ($1, $2, $3, 'monthly', 'on_track')
                RETURNING *`,
-              [ogsmStrategy.id, metricName]
+              [ogsmStrategy.id, draftStrategy.id, metricName]
             );
             createdKPIs.push(kpiResult.rows[0]);
           }

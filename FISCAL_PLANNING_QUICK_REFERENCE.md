@@ -152,14 +152,3 @@ Shows: (Converted ÷ Total) × 100%
 
 ---
 
-## Questions?
-
-📖 **Full Guide:** FISCAL_PLANNING_USER_GUIDE.md
-📋 **Technical Docs:** CLAUDE.md
-🔧 **Issues:** Contact IT Support
-
----
-
-**Print this page for quick reference at your desk!**
-
-*v2.0 | January 2026*
