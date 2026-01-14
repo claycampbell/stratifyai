@@ -367,7 +367,9 @@ class FiscalPlanningService {
           );
 
           // Create KPIs from success_metrics
-          const successMetrics = draftStrategy.success_metrics ? JSON.parse(draftStrategy.success_metrics) : [];
+          const successMetrics = Array.isArray(draftStrategy.success_metrics)
+            ? draftStrategy.success_metrics
+            : (draftStrategy.success_metrics ? JSON.parse(draftStrategy.success_metrics) : []);
           for (const metricName of successMetrics) {
             const kpiResult = await client.query(
               `INSERT INTO kpis (ogsm_component_id, name, frequency, status)
