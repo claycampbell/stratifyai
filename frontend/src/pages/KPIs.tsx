@@ -292,7 +292,7 @@ export default function KPIs() {
             </button>
           </div>
 
-          {kpis && kpis.length > 0 && fiscalPlanFilter !== 'all' && (
+          {fiscalPlanFilter !== 'all' && (
             <button
               onClick={() => setShowCopyModal(true)}
               className="btn bg-purple-600 hover:bg-purple-700 text-white flex items-center"
