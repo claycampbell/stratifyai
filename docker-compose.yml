@@ -67,7 +67,9 @@ services:
     networks:
       - ogsm_network
     environment:
-      VITE_API_URL: http://localhost:5000/api
+      API_UPSTREAM: http://backend:5000
+    volumes:
+      - ./frontend/nginx.docker-compose.conf:/etc/nginx/conf.d/api-proxy.conf:ro
 
 volumes:
   postgres_data:
