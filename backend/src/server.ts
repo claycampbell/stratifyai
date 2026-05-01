@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import pool from './config/database';
+import { authenticate } from './middleware/auth';
 
 // Import routes
 import authRouter from './routes/auth';
@@ -55,6 +56,14 @@ const uploadsDir = process.env.UPLOAD_DIR || 'uploads';
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// Apply authentication to all /api routes except /auth
+app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith('/auth')) {
+    return next();
+  }
+  return authenticate(req as any, res, next);
+});
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -160,17 +169,26 @@ async function initializeDatabase() {
     ]);
     console.log('Database connection test successful');
 
-    // In production (dist), __dirname points to /app/dist
-    // SQL file is at /app/src/database/init.sql
+    // Check if tables already exist
+    const tableCheck = await pool.query(
+      `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'documents')`
+    );
+    const tablesExist = tableCheck.rows[0].exists;
+
     const dbPath = process.env.NODE_ENV === 'production'
       ? path.join(__dirname, '../src/database')
       : path.join(__dirname, 'database');
 
-    // Run init.sql first
-    const initSqlPath = path.join(dbPath, 'init.sql');
-    const initSQL = fs.readFileSync(initSqlPath, 'utf-8');
-    await pool.query(initSQL);
-    console.log('Database schema initialized successfully');
+    // Run init.sql if tables don't exist yet
+    if (!tablesExist) {
+      console.log('Running database schema initialization...');
+      const initSqlPath = path.join(dbPath, 'init.sql');
+      const initSQL = fs.readFileSync(initSqlPath, 'utf-8');
+      await pool.query(initSQL);
+      console.log('Database schema initialized successfully');
+    } else {
+      console.log('Database tables already exist, skipping schema init');
+    }
 
     // Run migrations in order
     const migrationsPath = path.join(dbPath, 'migrations');

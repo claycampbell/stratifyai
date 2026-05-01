@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import api from '@/lib/api';
 import {
   Users,
   Shield,
@@ -17,8 +17,6 @@ import {
   AlertCircle,
   Eye
 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 interface User {
   id: string;
@@ -81,9 +79,9 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const [usersRes, rolesRes, statsRes] = await Promise.all([
-        axios.get(`${API_URL}/users`),
-        axios.get(`${API_URL}/users/roles/list`),
-        axios.get(`${API_URL}/users/stats/overview`)
+        api.get('/users'),
+        api.get('/users/roles/list'),
+        api.get('/users/stats/overview')
       ]);
 
       setUsers(usersRes.data);
@@ -98,7 +96,7 @@ export default function AdminDashboard() {
 
   const handleUpdateUser = async (userId: string, updates: Partial<User>) => {
     try {
-      await axios.put(`${API_URL}/users/${userId}`, updates);
+      await api.put(`/users/${userId}`, updates);
       await fetchData();
       setShowEditModal(false);
       setEditingUser(null);
@@ -114,7 +112,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      await axios.delete(`${API_URL}/users/${userId}`);
+      await api.delete(`/users/${userId}`);
       await fetchData();
     } catch (error) {
       console.error('Error deleting user:', error);

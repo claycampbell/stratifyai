@@ -24,7 +24,14 @@ WHERE user_id IS NOT NULL
 GROUP BY session_id, user_id
 ON CONFLICT (id) DO NOTHING;
 
--- Now add the foreign key constraint
-ALTER TABLE chat_history
-ADD CONSTRAINT fk_chat_history_session
-FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE;
+-- Now add the foreign key constraint (idempotent for PostgreSQL 15)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_chat_history_session'
+  ) THEN
+    ALTER TABLE chat_history
+    ADD CONSTRAINT fk_chat_history_session
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE;
+  END IF;
+END $$;

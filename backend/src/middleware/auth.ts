@@ -2,9 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '24h';
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
+
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+  }
+  return secret;
+}
 
 export interface AuthRequest extends Request {
   user?: {
@@ -23,6 +31,8 @@ export const authenticate = async (
   res: Response,
   next: NextFunction
 ) => {
+  if (req.user) return next();
+
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
 
@@ -30,7 +40,7 @@ export const authenticate = async (
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, getJwtSecret()) as any;
 
     // Fetch user details from database
     const userResult = await pool.query(
@@ -99,12 +109,12 @@ export const authorize = (...requiredPermissions: string[]) => {
 
 // Generate access token
 export const generateAccessToken = (userId: string): string => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 };
 
 // Generate refresh token
 export const generateRefreshToken = (userId: string): string => {
-  return jwt.sign({ userId, type: 'refresh' }, JWT_SECRET, {
+  return jwt.sign({ userId, type: 'refresh' }, getJwtSecret(), {
     expiresIn: REFRESH_TOKEN_EXPIRES_IN,
   });
 };
@@ -112,7 +122,7 @@ export const generateRefreshToken = (userId: string): string => {
 // Verify refresh token
 export const verifyRefreshToken = (token: string): { userId: string } | null => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, getJwtSecret()) as any;
     if (decoded.type !== 'refresh') {
       return null;
     }

@@ -4,8 +4,10 @@ import { staffPlansApi } from '@/lib/api';
 import { StaffPlan } from '@/types';
 import { Plus, Calendar, Users, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function StaffPlans() {
+  const { user } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -42,10 +44,9 @@ export default function StaffPlans() {
 
   const handleCreatePlan = (e: React.FormEvent) => {
     e.preventDefault();
-    // For now, use a placeholder user_id (should come from auth context)
     createPlanMutation.mutate({
       ...newPlan,
-      user_id: '00000000-0000-0000-0000-000000000000', // TODO: Get from auth
+      user_id: user?.id || '',
     });
   };
 

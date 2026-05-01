@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { UserPreferencesProvider } from './contexts/UserPreferencesContext';
 import Layout from './components/Layout';
@@ -11,6 +10,7 @@ import Documents from './pages/Documents';
 import OGSMView from './pages/OGSMView';
 import KPIs from './pages/KPIs';
 import Reports from './pages/Reports';
+import AIChat from './pages/AIChat';
 import StrategicPlanning from './pages/StrategicPlanning';
 import AIStrategyPage from './pages/AIStrategyPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -21,33 +21,31 @@ import FiscalPlanningDashboard from './pages/FiscalPlanningDashboard';
 import FiscalPlanSetup from './pages/FiscalPlanSetup';
 import FiscalPlanDetail from './pages/FiscalPlanDetail';
 
-const queryClient = new QueryClient();
-
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <Router>
       <AuthProvider>
         <UserPreferencesProvider>
-          <Router>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-            {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
+          {/* Protected routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
               <Route index element={<Dashboard />} />
               <Route path="documents" element={<Documents />} />
               <Route path="ogsm" element={<OGSMView />} />
               <Route path="kpis" element={<KPIs />} />
               <Route path="ai-strategy" element={<AIStrategyPage />} />
+              <Route path="ai-chat" element={<AIChat />} />
               <Route path="reports" element={<Reports />} />
               <Route path="strategic-planning" element={<StrategicPlanning />} />
               <Route path="staff-plans" element={<StaffPlans />} />
@@ -65,11 +63,10 @@ function App() {
                 }
               />
             </Route>
-          </Routes>
-          </Router>
+        </Routes>
         </UserPreferencesProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </Router>
   );
 }
 
