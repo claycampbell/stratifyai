@@ -40,7 +40,9 @@ jobs:
 
       - name: Build and push frontend image using ACR
         run: |
-          az acr build --registry ${{ env.ACR_NAME }} --image ogsm-frontend:latest ./frontend
+          az acr build --registry ${{ env.ACR_NAME }} --image ogsm-frontend:latest \
+            --build-arg VITE_API_URL=https://ogsm-backend-webapp.azurewebsites.net/api \
+            ./frontend
 
       - name: Restart backend web app
         run: |
