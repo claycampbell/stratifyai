@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { ogsmApi, kpisApi, dashboardApi } from '@/lib/api';
-import axios from 'axios';
+import api from '@/lib/api';
 import {
   TrendingUp,
   Target,
@@ -20,8 +20,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import PhilosophyQuickReference from '@/components/PhilosophyQuickReference';
 import RecentValidations from '@/components/RecentValidations';
 import AlignmentScoreWidget from '@/components/AlignmentScoreWidget';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function AthleticsDirectorDashboard() {
   const { user } = useAuth();
@@ -43,7 +41,7 @@ export default function AthleticsDirectorDashboard() {
 
   const { data: userStats } = useQuery({
     queryKey: ['user-stats'],
-    queryFn: () => axios.get(`${API_URL}/users/stats/overview`).then((res) => res.data),
+    queryFn: () => api.get('/users/stats/overview').then((res) => res.data),
   });
 
   // Calculate KPI health
@@ -287,7 +285,7 @@ export default function AthleticsDirectorDashboard() {
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className={`${metric.color} h-2 rounded-full transition-all duration-300`}
-                          style={{ width: `${(metric.value / metric.total) * 100}%` }}
+                          style={{ width: `${Math.min((metric.value / metric.total) * 100, 100)}%` }}
                         />
                       </div>
                     </div>

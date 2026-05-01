@@ -107,11 +107,9 @@ export default function Layout() {
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/RMU_Colonials_logo.svg/1200px-RMU_Colonials_logo.svg.png"
-                alt="RMU Colonials Logo"
-                className="h-10 w-10 object-contain"
-              />
+              <div className="h-10 w-10 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-sm">
+                RMU
+              </div>
               <Target className="h-8 w-8 text-primary-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">
                 StratifyAI

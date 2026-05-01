@@ -19,6 +19,7 @@ import { useState } from 'react';
 export default function StaffDashboard() {
   const { user } = useAuth();
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [showSampleData] = useState(true);
 
   const { data: kpis } = useQuery({
     queryKey: ['kpis'],
@@ -209,24 +210,29 @@ export default function StaffDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* My Tasks - Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Priority Tasks */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">My Tasks</h2>
-              <div className="flex space-x-2">
-                <button className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
-                  All
-                </button>
-                <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
-                  High Priority
-                </button>
-                <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
-                  Due Soon
-                </button>
+          {/* My Tasks - Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Priority Tasks */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">My Tasks</h2>
+                <div className="flex items-center gap-2">
+                  {showSampleData && (
+                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">Sample data</span>
+                  )}
+                  <div className="flex space-x-2">
+                    <button className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                      All
+                    </button>
+                    <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+                      High Priority
+                    </button>
+                    <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+                      Due Soon
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
 
             <div className="space-y-3">
               {myTasks.map((task) => (
@@ -322,7 +328,10 @@ export default function StaffDashboard() {
           {/* Notifications */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Notifications</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-gray-900">Notifications</h2>
+                {showSampleData && <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded">Sample</span>}
+              </div>
               <button className="text-sm text-blue-600 hover:text-blue-700">
                 Mark all read
               </button>
