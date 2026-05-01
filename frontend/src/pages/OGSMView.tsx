@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ogsmApi } from '@/lib/api';
-import { Plus, Trash2, Copy, List, Network, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Copy, List, Network, Sparkles, Edit2, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import OGSMTreeView from '@/components/OGSMTreeView';
 import OGSMTemplatesDialog from '@/components/OGSMTemplatesDialog';
@@ -15,6 +15,7 @@ export default function OGSMView() {
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
   const [isCreating, setIsCreating] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [editingComponent, setEditingComponent] = useState<any>(null);
   const [newComponent, setNewComponent] = useState({
     component_type: 'objective',
     title: '',
@@ -43,6 +44,14 @@ export default function OGSMView() {
       queryClient.invalidateQueries({ queryKey: ['ogsm'] });
       setIsCreating(false);
       setNewComponent({ component_type: 'objective', title: '', description: '' });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => ogsmApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ogsm'] });
+      setEditingComponent(null);
     },
   });
 
@@ -80,6 +89,10 @@ export default function OGSMView() {
       'Do you want to duplicate this component including all its children?'
     );
     duplicateMutation.mutate({ id, includeChildren: confirm });
+  };
+
+  const handleEdit = (component: any) => {
+    setEditingComponent({ ...component });
   };
 
   const handleReorder = (updates: Array<{ id: string; order_index?: number; parent_id?: string | null }>) => {
@@ -249,6 +262,7 @@ export default function OGSMView() {
           viewMode === 'tree' ? (
             <OGSMTreeView
               components={components}
+              onEdit={handleEdit}
               onDuplicate={handleDuplicate}
               onDelete={(id) => deleteMutation.mutate(id)}
               onReorder={handleReorder}
@@ -277,6 +291,13 @@ export default function OGSMView() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
+                      onClick={() => handleEdit(component)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Edit component"
+                    >
+                      <Edit2 className="h-5 w-5" />
+                    </button>
+                    <button
                       onClick={() => handleDuplicate(component.id)}
                       disabled={duplicateMutation.isPending}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -300,6 +321,40 @@ export default function OGSMView() {
           <p className="text-gray-600 p-4">No components found. Create your first component!</p>
         )}
       </div>
+
+      {/* Edit Modal */}
+      {editingComponent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingComponent(null)}>
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Edit {editingComponent.component_type}</h2>
+              <button onClick={() => setEditingComponent(null)} className="p-1 hover:bg-gray-100 rounded"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select value={editingComponent.component_type} onChange={e => setEditingComponent({...editingComponent, component_type: e.target.value})} className="input w-full">
+                  {componentTypes.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input type="text" value={editingComponent.title} onChange={e => setEditingComponent({...editingComponent, title: e.target.value})} className="input w-full" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea value={editingComponent.description || ''} onChange={e => setEditingComponent({...editingComponent, description: e.target.value})} className="input w-full" rows={3} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setEditingComponent(null)} className="btn btn-secondary">Cancel</button>
+              <button onClick={() => updateMutation.mutate({ id: editingComponent.id, data: editingComponent })} disabled={updateMutation.isPending} className="btn btn-primary">
+                {updateMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Templates Dialog */}
       <OGSMTemplatesDialog
