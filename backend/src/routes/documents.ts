@@ -66,6 +66,52 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
   }
 });
 
+// Detect if spreadsheet header row looks like KPI columns
+function isKPISpreadsheet(headers: any[]): boolean {
+  const headerText = headers.map(h => String(h || '').toLowerCase()).join(' ');
+  const kpiKeywords = ['kpi', 'kpi name', 'metric', 'measure', 'kpi name/id',
+    'target', 'target value', 'target_value', 'goal', 'goal value',
+    'current', 'current value', 'current_value', 'actual', 'actual value',
+    'unit', 'frequency', 'owner', 'responsible', 'status'];
+  const matches = kpiKeywords.filter(kw => headerText.includes(kw)).length;
+  return matches >= 2;
+}
+
+// Parse KPI rows from a spreadsheet
+function parseKPIsFromSheet(headers: any[], rows: any[][]): any[] {
+  const headerMap: Record<string, number> = {};
+  headers.forEach((h, i) => {
+    const key = String(h || '').toLowerCase().trim();
+    headerMap[key] = i;
+  });
+
+  const kpis: any[] = [];
+  for (const row of rows) {
+    if (!row || row.every(c => c === undefined || c === null || String(c).trim() === '')) continue;
+    const nameCol = headerMap['kpi'] ?? headerMap['kpi name'] ?? headerMap['kpi name/id']
+      ?? headerMap['metric'] ?? headerMap['measure'] ?? headerMap['name'];
+    if (nameCol === undefined) continue;
+    const name = String(row[nameCol] || '').trim();
+    if (!name) continue;
+
+    const targetKey = Object.keys(headerMap).find(k => k.includes('target') || k.includes('goal')) ?? '';
+    const currentKey = Object.keys(headerMap).find(k => k.includes('current') || k.includes('actual')) ?? '';
+    const unitKey = Object.keys(headerMap).find(k => k === 'unit') ?? '';
+    const freqKey = Object.keys(headerMap).find(k => k === 'frequency') ?? '';
+    const descKey = Object.keys(headerMap).find(k => k.includes('description')) ?? '';
+
+    kpis.push({
+      name,
+      description: descKey ? String(row[headerMap[descKey]] || '') : '',
+      target_value: targetKey ? parseFloat(row[headerMap[targetKey]] as any) || null : null,
+      current_value: currentKey ? parseFloat(row[headerMap[currentKey]] as any) || null : null,
+      unit: unitKey ? String(row[headerMap[unitKey]] || '') : '',
+      frequency: freqKey ? String(row[headerMap[freqKey]] || '').toLowerCase() : 'monthly',
+    });
+  }
+  return kpis;
+}
+
 // Process document and extract OGSM components
 async function processDocumentAsync(documentId: string, filePath: string, fileType: string) {
   console.log(`[Document ${documentId}] Starting processing...`);
@@ -79,38 +125,61 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
       throw new Error('Document contains no extractable text');
     }
 
-    // Extract OGSM components using AI with retry
-    console.log(`[Document ${documentId}] Extracting OGSM components...`);
-    let ogsmComponents = await extractWithRetry(
-      () => openaiService.extractOGSMFromText(processed.text),
-      'OGSM components',
-      documentId
-    );
+    let ogsmComponents: any[] = [];
+    let kpis: any[] = [];
 
-    // Extract KPIs with retry
-    console.log(`[Document ${documentId}] Extracting KPIs...`);
-    let kpis = await extractWithRetry(
-      () => openaiService.extractKPIsFromText(processed.text),
-      'KPIs',
-      documentId
-    );
+    // For XLSX/XLS files: try to detect and parse KPI spreadsheets directly
+    const ext = path.extname(filePath).toLowerCase();
+    if ((ext === '.xlsx' || ext === '.xls') && processed.tables && processed.tables.length > 0) {
+      console.log(`[Document ${documentId}] Detected spreadsheet with ${processed.tables.length} sheets`);
+
+      for (const sheet of processed.tables) {
+        if (!sheet.data || sheet.data.length < 2) continue;
+
+        const headers = sheet.data[0];
+        const rows = sheet.data.slice(1);
+
+        if (isKPISpreadsheet(headers)) {
+          console.log(`[Document ${documentId}] Sheet "${sheet.name}" identified as KPI spreadsheet`);
+          const sheetKpis = parseKPIsFromSheet(headers, rows);
+          if (sheetKpis.length > 0) {
+            console.log(`[Document ${documentId}] Parsed ${sheetKpis.length} KPIs from sheet "${sheet.name}"`);
+            kpis.push(...sheetKpis);
+          }
+        } else {
+          console.log(`[Document ${documentId}] Sheet "${sheet.name}" not identified as KPI sheet, using AI extraction`);
+        }
+      }
+
+      // If no KPIs were parsed directly, fall back to AI extraction with structured data
+      if (kpis.length === 0) {
+        console.log(`[Document ${documentId}] No direct KPI parse, falling back to AI extraction`);
+        const structuredText = processed.text + '\n\nStructured table data:\n' +
+          JSON.stringify(processed.tables);
+        kpis = await extractWithRetry(
+          () => openaiService.extractKPIsFromText(structuredText),
+          'KPIs',
+          documentId
+        );
+      }
+    } else {
+      // Text-based documents: extract both OGSM and KPIs via AI
+      console.log(`[Document ${documentId}] Extracting OGSM components...`);
+      ogsmComponents = await extractWithRetry(
+        () => openaiService.extractOGSMFromText(processed.text),
+        'OGSM components',
+        documentId
+      );
+
+      console.log(`[Document ${documentId}] Extracting KPIs...`);
+      kpis = await extractWithRetry(
+        () => openaiService.extractKPIsFromText(processed.text),
+        'KPIs',
+        documentId
+      );
+    }
 
     console.log(`[Document ${documentId}] Extraction complete: ${ogsmComponents.length} OGSM components, ${kpis.length} KPIs`);
-
-    // Validate we got meaningful results
-    if (ogsmComponents.length === 0 && kpis.length === 0) {
-      console.warn(`[Document ${documentId}] No OGSM or KPI data extracted - document may not contain strategic content`);
-      // Still mark as processed but log warning in metadata
-      await pool.query(
-        `UPDATE documents SET processed = true, metadata = $1 WHERE id = $2`,
-        [JSON.stringify({
-          ...processed.metadata,
-          warning: 'No strategic content detected',
-          text_length: processed.text.length
-        }), documentId]
-      );
-      return;
-    }
 
     // Save OGSM components to database
     const componentIdMap = new Map<string, string>();
@@ -135,66 +204,51 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
       const componentId = componentResult.rows[0].id;
       componentIdMap.set(component.title, componentId);
 
-      // If this is a measure component, link KPIs to it
       if (component.component_type === 'measure' && kpis.length > 0) {
         console.log(`[Document ${documentId}] Linking ${kpis.length} KPIs to measure: ${component.title}`);
         for (const kpi of kpis) {
-          if (!kpi.name) {
-            console.warn(`[Document ${documentId}] Skipping KPI with no name:`, kpi);
-            continue;
-          }
-
+          if (!kpi.name) continue;
           await pool.query(
             `INSERT INTO kpis (ogsm_component_id, name, description, target_value, current_value, unit, frequency, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-            [
-              componentId,
-              kpi.name,
-              kpi.description || '',
-              kpi.target_value || null,
-              kpi.current_value || null,
-              kpi.unit || '',
-              kpi.frequency || 'monthly',
-              'on_track',
-            ]
+            [componentId, kpi.name, kpi.description || '', kpi.target_value || null,
+             kpi.current_value || null, kpi.unit || '', kpi.frequency || 'monthly', 'on_track']
           );
         }
-        // Clear KPIs after linking to first measure to avoid duplication
         kpis = [];
       }
     }
 
-    // If we have KPIs but no measure components, create standalone KPIs
+    // Create standalone KPIs (not linked to a measure)
     if (kpis.length > 0) {
-      console.log(`[Document ${documentId}] Creating ${kpis.length} standalone KPIs (no measure component found)`);
+      console.log(`[Document ${documentId}] Creating ${kpis.length} standalone KPIs`);
       for (const kpi of kpis) {
         if (!kpi.name) continue;
-
         await pool.query(
           `INSERT INTO kpis (name, description, target_value, current_value, unit, frequency, status)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            kpi.name,
-            kpi.description || '',
-            kpi.target_value || null,
-            kpi.current_value || null,
-            kpi.unit || '',
-            kpi.frequency || 'monthly',
-            'on_track',
-          ]
+          [kpi.name, kpi.description || '', kpi.target_value || null,
+           kpi.current_value || null, kpi.unit || '', kpi.frequency || 'monthly', 'on_track']
         );
       }
     }
 
-    // Update document as processed
+    const totalExtracted = ogsmComponents.length + kpis.length;
+    const metadata: any = {
+      ...processed.metadata,
+      ogsm_count: ogsmComponents.length,
+      kpi_count: kpis.length,
+      processed_at: new Date().toISOString(),
+    };
+
+    if (totalExtracted === 0) {
+      metadata.warning = 'No strategic content detected';
+      metadata.text_length = processed.text.length;
+    }
+
     await pool.query(
       `UPDATE documents SET processed = true, metadata = $1 WHERE id = $2`,
-      [JSON.stringify({
-        ...processed.metadata,
-        ogsm_count: ogsmComponents.length,
-        kpi_count: kpis.length,
-        processed_at: new Date().toISOString()
-      }), documentId]
+      [JSON.stringify(metadata), documentId]
     );
 
     console.log(`[Document ${documentId}] Processing completed successfully`);
