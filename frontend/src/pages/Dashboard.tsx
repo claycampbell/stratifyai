@@ -242,7 +242,7 @@ export default function Dashboard() {
             </p>
           </Link>
           <Link
-            to="/ai-chat"
+            to="/ai-strategy"
             className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <h3 className="font-semibold text-gray-900">AI Strategy Chat</h3>

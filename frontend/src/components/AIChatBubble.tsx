@@ -75,8 +75,6 @@ export default function AIChatBubble() {
 
         // Refresh recent validations after every AI response
         queryClient.invalidateQueries({ queryKey: ['recent-validations'] });
-
-        setMessage('');
       } catch (error) {
         console.error('Error in chat mutation onSuccess:', error);
       }
@@ -97,8 +95,9 @@ export default function AIChatBubble() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !chatMutation.isPending) {
-      // Send message to AI - the backend will handle action detection and execution
-      chatMutation.mutate(message);
+      const msg = message;
+      setMessage('');
+      chatMutation.mutate(msg);
     }
   };
 

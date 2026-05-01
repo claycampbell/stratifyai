@@ -9,7 +9,6 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to include auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
@@ -21,6 +20,47 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/register') &&
+      !originalRequest.url?.includes('/auth/refresh')
+    ) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) throw new Error('No refresh token');
+
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const newAccessToken = response.data.accessToken;
+        const newRefreshToken = response.data.refreshToken;
+
+        localStorage.setItem('accessToken', newAccessToken);
+        if (newRefreshToken) localStorage.setItem('refreshToken', newRefreshToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.dispatchEvent(new Event('auth:logout'));
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+
 // Documents API
 export const documentsApi = {
   getAll: () => api.get('/documents'),
@@ -29,9 +69,7 @@ export const documentsApi = {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   delete: (id: string) => api.delete(`/documents/${id}`),
@@ -87,9 +125,7 @@ export const kpisApi = {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/kpis/import', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
 };
@@ -126,40 +162,9 @@ export const aiApi = {
 
 // AI Strategy API
 export const aiStrategyApi = {
-  generate: (context: {
-    objective: string;
-    industry?: string;
-    company_size?: string;
-    current_situation?: string;
-    constraints?: string;
-    resources?: string;
-    timeframe?: string;
-    num_strategies?: number;
-  }) => api.post('/ai-strategy/generate', context),
-  addToKnowledgeBase: (data: {
-    title: string;
-    description: string;
-    strategy_text: string;
-    industry?: string;
-    company_size?: string;
-    objective_type?: string;
-    success_metrics?: any;
-    outcomes?: any;
-    implementation_cost?: string;
-    timeframe?: string;
-    difficulty_level?: string;
-    success_rate?: number;
-    case_study_source?: string;
-    tags?: string[];
-  }) => api.post('/ai-strategy/knowledge-base', data),
-  submitFeedback: (data: {
-    generated_strategy_id: string;
-    rating: number;
-    feedback_type: 'implementation' | 'outcome' | 'general';
-    comments?: string;
-    outcome_achieved?: boolean;
-    outcome_data?: any;
-  }) => api.post('/ai-strategy/feedback', data),
+  generate: (context: any) => api.post('/ai-strategy/generate', context),
+  addToKnowledgeBase: (data: any) => api.post('/ai-strategy/knowledge-base', data),
+  submitFeedback: (data: any) => api.post('/ai-strategy/feedback', data),
 };
 
 // Dashboard API
@@ -171,41 +176,29 @@ export const dashboardApi = {
 
 // KPI Enhancements API
 export const kpiEnhancementsApi = {
-  // Templates
   getTemplates: (category?: string) => api.get('/kpi-enhancements/templates', { params: { category } }),
   createFromTemplate: (templateId: string, data: any) =>
     api.post(`/kpi-enhancements/templates/${templateId}/create`, data),
   createTemplate: (data: any) => api.post('/kpi-enhancements/templates', data),
-
-  // Bulk Operations
   bulkUpdate: (kpiIds: string[], updates: any, performedBy?: string) =>
     api.post('/kpi-enhancements/bulk/update', { kpi_ids: kpiIds, updates, performed_by: performedBy }),
   bulkDelete: (kpiIds: string[], performedBy?: string) =>
     api.post('/kpi-enhancements/bulk/delete', { kpi_ids: kpiIds, performed_by: performedBy }),
   getBulkHistory: (limit?: number) => api.get('/kpi-enhancements/bulk/history', { params: { limit } }),
-
-  // Recalculation
   recalculateStatus: (id: string) => api.post(`/kpi-enhancements/${id}/recalculate`),
-
-  // Alerts
   getAlerts: (params?: { kpi_id?: string; acknowledged?: boolean; severity?: string; limit?: number }) =>
     api.get('/kpi-enhancements/alerts', { params }),
   getKPIAlerts: (kpiId: string, limit?: number) =>
     api.get(`/kpi-enhancements/${kpiId}/alerts`, { params: { limit } }),
   acknowledgeAlert: (alertId: string, acknowledgedBy?: string) =>
     api.post(`/kpi-enhancements/alerts/${alertId}/acknowledge`, { acknowledged_by: acknowledgedBy }),
-
-  // Validation
   validateValue: (value: number, validationRules?: any) =>
     api.post('/kpi-enhancements/validate', { value, validation_rules: validationRules }),
 };
 
 // Strategic Planning APIs
-
-// Risks API
 export const risksApi = {
-  getAll: (params?: { status?: string; category?: string; owner_email?: string; min_score?: number; sort_by?: string; sort_order?: string }) =>
-    api.get('/risks', { params }),
+  getAll: (params?: any) => api.get('/risks', { params }),
   getById: (id: string) => api.get(`/risks/${id}`),
   getByOGSM: (ogsmId: string) => api.get(`/risks/ogsm/${ogsmId}`),
   create: (data: any) => api.post('/risks', data),
@@ -215,55 +208,45 @@ export const risksApi = {
   getMatrixData: () => api.get('/risks/matrix/data'),
 };
 
-// Initiatives API
 export const initiativesApi = {
-  getAll: (params?: { status?: string; priority?: string; owner_email?: string; sort_by?: string; sort_order?: string }) =>
-    api.get('/initiatives', { params }),
+  getAll: (params?: any) => api.get('/initiatives', { params }),
   getById: (id: string) => api.get(`/initiatives/${id}`),
   getByOGSM: (ogsmId: string) => api.get(`/initiatives/ogsm/${ogsmId}`),
   create: (data: any) => api.post('/initiatives', data),
   update: (id: string, data: any) => api.put(`/initiatives/${id}`, data),
   delete: (id: string) => api.delete(`/initiatives/${id}`),
   getStats: () => api.get('/initiatives/stats/summary'),
-  // Milestones
   getMilestones: (initiativeId: string) => api.get(`/initiatives/${initiativeId}/milestones`),
   createMilestone: (initiativeId: string, data: any) => api.post(`/initiatives/${initiativeId}/milestones`, data),
   updateMilestone: (initiativeId: string, milestoneId: string, data: any) =>
     api.put(`/initiatives/${initiativeId}/milestones/${milestoneId}`, data),
   deleteMilestone: (initiativeId: string, milestoneId: string) =>
     api.delete(`/initiatives/${initiativeId}/milestones/${milestoneId}`),
-  // KPI Links
   getLinkedKPIs: (initiativeId: string) => api.get(`/initiatives/${initiativeId}/kpis`),
   linkKPI: (initiativeId: string, kpiId: string, targetImpact?: string) =>
     api.post(`/initiatives/${initiativeId}/kpis`, { kpi_id: kpiId, target_impact_description: targetImpact }),
   unlinkKPI: (initiativeId: string, kpiId: string) => api.delete(`/initiatives/${initiativeId}/kpis/${kpiId}`),
 };
 
-// Scenarios API
 export const scenariosApi = {
-  getAll: (params?: { status?: string; scenario_type?: string; sort_by?: string; sort_order?: string }) =>
-    api.get('/scenarios', { params }),
+  getAll: (params?: any) => api.get('/scenarios', { params }),
   getById: (id: string) => api.get(`/scenarios/${id}`),
   getBaseline: () => api.get('/scenarios/baseline/current'),
   create: (data: any) => api.post('/scenarios', data),
   update: (id: string, data: any) => api.put(`/scenarios/${id}`, data),
   delete: (id: string) => api.delete(`/scenarios/${id}`),
-  // Projections
   getProjections: (scenarioId: string) => api.get(`/scenarios/${scenarioId}/projections`),
   createProjection: (scenarioId: string, data: any) => api.post(`/scenarios/${scenarioId}/projections`, data),
   deleteProjection: (scenarioId: string, projectionId: string) =>
     api.delete(`/scenarios/${scenarioId}/projections/${projectionId}`),
-  // Analysis
   compareScenarios: (scenarioIds: string[], kpiIds?: string[]) =>
     api.post('/scenarios/compare', { scenario_ids: scenarioIds, kpi_ids: kpiIds }),
   runWhatIf: (kpiId: string, valueChanges: any[]) =>
     api.post('/scenarios/what-if', { kpi_id: kpiId, value_changes: valueChanges }),
 };
 
-// Budgets API
 export const budgetsApi = {
-  getAll: (params?: { status?: string; budget_type?: string; fiscal_year?: number; fiscal_quarter?: number; owner_email?: string; sort_by?: string; sort_order?: string }) =>
-    api.get('/budgets', { params }),
+  getAll: (params?: any) => api.get('/budgets', { params }),
   getById: (id: string) => api.get(`/budgets/${id}`),
   getByOGSM: (ogsmId: string) => api.get(`/budgets/ogsm/${ogsmId}`),
   getByInitiative: (initiativeId: string) => api.get(`/budgets/initiative/${initiativeId}`),
@@ -272,17 +255,14 @@ export const budgetsApi = {
   delete: (id: string) => api.delete(`/budgets/${id}`),
   getStats: (fiscalYear?: number, fiscalQuarter?: number) =>
     api.get('/budgets/stats/summary', { params: { fiscal_year: fiscalYear, fiscal_quarter: fiscalQuarter } }),
-  // Transactions
   getTransactions: (budgetId: string) => api.get(`/budgets/${budgetId}/transactions`),
   createTransaction: (budgetId: string, data: any) => api.post(`/budgets/${budgetId}/transactions`, data),
   deleteTransaction: (budgetId: string, transactionId: string) =>
     api.delete(`/budgets/${budgetId}/transactions/${transactionId}`),
 };
 
-// Resources API
 export const resourcesApi = {
-  getAll: (params?: { resource_type?: string; availability_status?: string; department?: string; sort_by?: string; sort_order?: string }) =>
-    api.get('/resources', { params }),
+  getAll: (params?: any) => api.get('/resources', { params }),
   getById: (id: string) => api.get(`/resources/${id}`),
   getAvailable: (resourceType?: string, minAvailability?: number) =>
     api.get('/resources/available/list', { params: { resource_type: resourceType, min_availability_percentage: minAvailability } }),
@@ -290,7 +270,6 @@ export const resourcesApi = {
   update: (id: string, data: any) => api.put(`/resources/${id}`, data),
   delete: (id: string) => api.delete(`/resources/${id}`),
   getStats: () => api.get('/resources/stats/summary'),
-  // Allocations
   getAllAllocations: (status?: string, initiativeId?: string) =>
     api.get('/resources/allocations/all', { params: { status, initiative_id: initiativeId } }),
   getAllocations: (resourceId: string) => api.get(`/resources/${resourceId}/allocations`),
@@ -301,10 +280,8 @@ export const resourcesApi = {
     api.delete(`/resources/${resourceId}/allocations/${allocationId}`),
 };
 
-// Dependencies API
 export const dependenciesApi = {
-  getAll: (params?: { dependency_type?: string; status?: string; strength?: string; source_type?: string; target_type?: string }) =>
-    api.get('/dependencies', { params }),
+  getAll: (params?: any) => api.get('/dependencies', { params }),
   getById: (id: string) => api.get(`/dependencies/${id}`),
   getForEntity: (entityType: string, entityId: string, direction?: 'outgoing' | 'incoming' | 'both') =>
     api.get(`/dependencies/entity/${entityType}/${entityId}`, { params: { direction } }),
@@ -323,15 +300,7 @@ export const dependenciesApi = {
 export const staffPlansApi = {
   getAll: (params?: { user_id?: string; status?: string }) => api.get('/staff-plans', { params }),
   getById: (id: string) => api.get(`/staff-plans/${id}`),
-  create: (data: {
-    user_id: string;
-    title: string;
-    description?: string;
-    start_date: string;
-    end_date: string;
-    status?: string;
-    created_by?: string;
-  }) => api.post('/staff-plans', data),
+  create: (data: any) => api.post('/staff-plans', data),
   update: (id: string, data: any) => api.put(`/staff-plans/${id}`, data),
   delete: (id: string) => api.delete(`/staff-plans/${id}`),
   getItems: (id: string, params?: { timeframe?: string; status?: string }) =>
@@ -341,32 +310,14 @@ export const staffPlansApi = {
 
 // Plan Items API
 export const planItemsApi = {
-  getAll: (params?: { plan_id?: string; timeframe?: string; status?: string; priority?: string }) =>
-    api.get('/plan-items', { params }),
+  getAll: (params?: any) => api.get('/plan-items', { params }),
   getById: (id: string) => api.get(`/plan-items/${id}`),
-  create: (data: {
-    plan_id: string;
-    title: string;
-    description?: string;
-    timeframe: string;
-    priority?: string;
-    status?: string;
-    completion_percentage?: number;
-    target_completion_date?: string;
-    notes?: string;
-    order_index?: number;
-  }) => api.post('/plan-items', data),
+  create: (data: any) => api.post('/plan-items', data),
   update: (id: string, data: any) => api.put(`/plan-items/${id}`, data),
   delete: (id: string) => api.delete(`/plan-items/${id}`),
   getLinks: (id: string) => api.get(`/plan-items/${id}/links`),
   getUpdates: (id: string) => api.get(`/plan-items/${id}/updates`),
-  addUpdate: (id: string, data: {
-    update_type: string;
-    previous_value?: string;
-    new_value?: string;
-    notes?: string;
-    updated_by?: string;
-  }) => api.post(`/plan-items/${id}/updates`, data),
+  addUpdate: (id: string, data: any) => api.post(`/plan-items/${id}/updates`, data),
   reorder: (items: Array<{ id: string; order_index: number }>) =>
     api.patch('/plan-items/reorder', { items }),
 };
@@ -376,20 +327,11 @@ export const planLinksApi = {
   getAll: (params?: { plan_item_id?: string; link_type?: string; link_id?: string }) =>
     api.get('/plan-links', { params }),
   getById: (id: string) => api.get(`/plan-links/${id}`),
-  create: (data: {
-    plan_item_id: string;
-    link_type: string;
-    link_id: string;
-    description?: string;
-  }) => api.post('/plan-links', data),
-  update: (id: string, data: { description?: string }) => api.put(`/plan-links/${id}`, data),
+  create: (data: any) => api.post('/plan-links', data),
+  update: (id: string, data: any) => api.put(`/plan-links/${id}`, data),
   delete: (id: string) => api.delete(`/plan-links/${id}`),
   getDetails: (id: string) => api.get(`/plan-links/${id}/details`),
-  bulkCreate: (plan_item_id: string, links: Array<{
-    link_type: string;
-    link_id: string;
-    description?: string;
-  }>) => api.post('/plan-links/bulk', { plan_item_id, links }),
+  bulkCreate: (plan_item_id: string, links: Array<any>) => api.post('/plan-links/bulk', { plan_item_id, links }),
 };
 
 // User Preferences API
@@ -403,80 +345,29 @@ export const preferencesApi = {
 // Philosophy API
 export const philosophyApi = {
   getDocuments: () => api.get('/philosophy/documents'),
-  createDocument: (data: {
-    type: string;
-    category?: string;
-    title: string;
-    content: string;
-    priority_weight?: number;
-  }) => api.post('/philosophy/documents', data),
+  createDocument: (data: any) => api.post('/philosophy/documents', data),
   getNonNegotiables: () => api.get('/philosophy/non-negotiables'),
   getDecisionHierarchy: () => api.get('/philosophy/decision-hierarchy'),
-  validate: (data: {
-    recommendationText: string;
-    chatHistoryId?: string;
-  }) => api.post('/philosophy/validate', data),
+  validate: (data: { recommendationText: string; chatHistoryId?: string }) =>
+    api.post('/philosophy/validate', data),
   getRecentValidations: (limit?: number) =>
     api.get('/philosophy/validations/recent', { params: { limit } }),
 };
 
 // Fiscal Year Planning API
 export const fiscalPlanningApi = {
-  // Plans
-  createPlan: (data: { fiscal_year: string; start_date?: string; end_date?: string }) =>
-    api.post('/fiscal-planning/plans', data),
+  createPlan: (data: any) => api.post('/fiscal-planning/plans', data),
   getAllPlans: () => api.get('/fiscal-planning/plans'),
   getActivePlan: () => api.get('/fiscal-planning/plans/active'),
   getPlanById: (planId: string) => api.get(`/fiscal-planning/plans/${planId}`),
   getPlanSummary: (planId: string) => api.get(`/fiscal-planning/plans/${planId}/summary`),
   activatePlan: (planId: string) => api.post(`/fiscal-planning/plans/${planId}/activate`),
-
-  // Priorities
-  updatePriorities: (planId: string, data: {
-    priorities: Array<{
-      priority_number: 1 | 2 | 3;
-      title: string;
-      description?: string;
-    }>
-  }) => api.post(`/fiscal-planning/plans/${planId}/priorities`, data),
-  importPriority: (planId: string, data: {
-    ogsm_component_id: string;
-    priority_number: 1 | 2 | 3;
-  }) => api.post(`/fiscal-planning/plans/${planId}/priorities/import`, data),
-
-  // Strategies
-  addStrategy: (planId: string, data: {
-    priority_id: string;
-    strategy: any;
-    ai_generation_id?: string;
-  }) => api.post(`/fiscal-planning/plans/${planId}/strategies`, data),
-  bulkAddStrategies: (planId: string, data: {
-    strategies: Array<{
-      priority_id: string;
-      strategy: any;
-      ai_generation_id?: string;
-    }>
-  }) => api.post(`/fiscal-planning/plans/${planId}/strategies/bulk`, data),
-  updateStrategyStatus: (strategyId: string, data: {
-    status: 'draft' | 'under_review' | 'approved' | 'rejected';
-    review_notes?: string;
-  }) => api.patch(`/fiscal-planning/strategies/${strategyId}`, data),
-
-  // Conversion
-  convertToOGSM: (planId: string, data: { strategy_ids: string[] }) =>
-    api.post(`/fiscal-planning/plans/${planId}/convert-to-ogsm`, data),
-
-  // KPIs from strategies
-  createKPIsFromStrategy: (strategyId: string, data: {
-    kpis: Array<{
-      name: string;
-      target_value?: number;
-      frequency: string;
-      unit?: string;
-    }>
-  }) => api.post(`/fiscal-planning/strategies/${strategyId}/create-kpis`, data),
-  getStrategyKPIsCount: (strategyId: string) =>
-    api.get(`/fiscal-planning/strategies/${strategyId}/kpis/count`),
+  updatePriorities: (planId: string, data: any) => api.post(`/fiscal-planning/plans/${planId}/priorities`, data),
+  importPriority: (planId: string, data: any) => api.post(`/fiscal-planning/plans/${planId}/priorities/import`, data),
+  addStrategy: (planId: string, data: any) => api.post(`/fiscal-planning/plans/${planId}/strategies`, data),
+  bulkAddStrategies: (planId: string, data: any) => api.post(`/fiscal-planning/plans/${planId}/strategies/bulk`, data),
+  updateStrategyStatus: (strategyId: string, data: any) => api.patch(`/fiscal-planning/strategies/${strategyId}`, data),
+  convertToOGSM: (planId: string, data: any) => api.post(`/fiscal-planning/plans/${planId}/convert-to-ogsm`, data),
+  createKPIsFromStrategy: (strategyId: string, data: any) => api.post(`/fiscal-planning/strategies/${strategyId}/create-kpis`, data),
+  getStrategyKPIsCount: (strategyId: string) => api.get(`/fiscal-planning/strategies/${strategyId}/kpis/count`),
 };
-
-export default api;

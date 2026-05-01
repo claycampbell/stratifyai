@@ -40,15 +40,15 @@ COPY create-strategic-tables.sql ./
 # Create uploads directory
 RUN mkdir -p uploads
 
-# Set default environment variables (can be overridden at runtime)
+# Set default environment variables (ALL must be overridden at runtime)
 ENV NODE_ENV=production
 ENV PORT=8000
-ENV DB_HOST=ogsm-postgres-server.postgres.database.azure.com
+ENV DB_HOST=
 ENV DB_PORT=5432
-ENV DB_NAME=ogsm_manager
-ENV DB_USER=ogsmadmin
-ENV DB_PASSWORD=OgsmPassword2025
-ENV GEMINI_API_KEY=PLACEHOLDER_ADD_YOUR_KEY
+ENV DB_NAME=
+ENV DB_USER=
+ENV DB_PASSWORD=
+ENV GEMINI_API_KEY=
 ENV MAX_FILE_SIZE=10485760
 ENV UPLOAD_DIR=/app/uploads
 

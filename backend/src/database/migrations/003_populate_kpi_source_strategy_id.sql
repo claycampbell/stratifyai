@@ -13,12 +13,9 @@ WHERE k.source_strategy_id IS NULL
   AND s.converted_to_ogsm_id IS NOT NULL;
 
 -- Strategy 2: Link remaining KPIs by matching creation time window (within 5 minutes)
--- and matching fiscal plan through OGSM component hierarchy
 UPDATE kpis k
 SET source_strategy_id = s.id
 FROM fiscal_year_draft_strategies s
-INNER JOIN fiscal_year_priorities p ON s.priority_id = p.id
-INNER JOIN ogsm_components oc ON k.ogsm_component_id = oc.id
 WHERE k.source_strategy_id IS NULL
   AND k.created_at BETWEEN s.created_at - INTERVAL '5 minutes' AND s.created_at + INTERVAL '10 minutes'
   AND s.status = 'converted';

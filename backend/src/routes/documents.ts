@@ -4,7 +4,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../config/database';
 import { FileProcessor } from '../utils/fileProcessor';
-import geminiService from '../services/geminiService';
+import openaiService from '../services/openaiService';
 
 const router = Router();
 
@@ -79,10 +79,10 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
       throw new Error('Document contains no extractable text');
     }
 
-    // Extract OGSM components using Gemini AI with retry
+    // Extract OGSM components using AI with retry
     console.log(`[Document ${documentId}] Extracting OGSM components...`);
     let ogsmComponents = await extractWithRetry(
-      () => geminiService.extractOGSMFromText(processed.text),
+      () => openaiService.extractOGSMFromText(processed.text),
       'OGSM components',
       documentId
     );
@@ -90,7 +90,7 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
     // Extract KPIs with retry
     console.log(`[Document ${documentId}] Extracting KPIs...`);
     let kpis = await extractWithRetry(
-      () => geminiService.extractKPIsFromText(processed.text),
+      () => openaiService.extractKPIsFromText(processed.text),
       'KPIs',
       documentId
     );

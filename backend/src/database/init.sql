@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS ogsm_components (
 CREATE TABLE IF NOT EXISTS kpis (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ogsm_component_id UUID REFERENCES ogsm_components(id) ON DELETE CASCADE,
-    source_strategy_id UUID REFERENCES fiscal_year_draft_strategies(id) ON DELETE SET NULL, -- Track which fiscal strategy created this KPI
+    source_strategy_id UUID, -- FK to fiscal_year_draft_strategies added at end of file
     name VARCHAR(255) NOT NULL,
     description TEXT,
     target_value DECIMAL,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS kpi_history (
 CREATE TABLE IF NOT EXISTS chat_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID NOT NULL,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID, -- FK to users added at end of file (table created in migration)
     role VARCHAR(20) NOT NULL, -- 'user' or 'assistant'
     message TEXT NOT NULL,
     context JSONB,
@@ -524,7 +524,7 @@ CREATE TABLE IF NOT EXISTS fiscal_year_plans (
   status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'completed', 'archived')),
   start_date DATE,
   end_date DATE,
-  created_by UUID REFERENCES users(id),
+    created_by UUID, -- FK to users added at end of file (table created in migration)
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   activated_at TIMESTAMP,
   completed_at TIMESTAMP
@@ -572,7 +572,7 @@ CREATE TABLE IF NOT EXISTS fiscal_year_draft_strategies (
   ai_generation_id UUID,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   reviewed_at TIMESTAMP,
-  reviewed_by UUID REFERENCES users(id),
+    reviewed_by UUID, -- FK to users added at end of file (table created in migration)
   review_notes TEXT
 );
 
@@ -583,3 +583,9 @@ CREATE INDEX IF NOT EXISTS idx_fiscal_priorities_plan ON fiscal_year_priorities(
 CREATE INDEX IF NOT EXISTS idx_draft_strategies_plan ON fiscal_year_draft_strategies(fiscal_plan_id);
 CREATE INDEX IF NOT EXISTS idx_draft_strategies_priority ON fiscal_year_draft_strategies(priority_id);
 CREATE INDEX IF NOT EXISTS idx_draft_strategies_status ON fiscal_year_draft_strategies(status);
+
+-- Add FK from kpis to fiscal_year_draft_strategies (table created above)
+-- Deferred FK constraints (tables they reference are created above or in migrations)
+ALTER TABLE kpis ADD CONSTRAINT fk_kpis_source_strategy
+  FOREIGN KEY (source_strategy_id) REFERENCES fiscal_year_draft_strategies(id) ON DELETE SET NULL;  
+-- Note: FK constraints referencing users(id) are defined in 002_authentication_system.sql migration

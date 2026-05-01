@@ -1,9 +1,7 @@
-import OpenAI from 'openai';
 import pool from '../config/database';
+import { getOpenAIClient } from '../config/openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-});
+const openai = getOpenAIClient();
 
 interface StrategyGenerationContext {
   objective: string;
@@ -195,7 +193,7 @@ Example format:
       // Step 4: Call OpenAI
       console.log('[AIStrategyService] Calling OpenAI API...');
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'google/gemini-3.1-flash-lite-preview',
         messages: [
           {
             role: 'system',

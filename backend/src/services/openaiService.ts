@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 export class OpenAIService {
   private client;
   private philosophyService: PhilosophyService;
-  private model = 'gpt-4o'; // Using GPT-4o as default model
+  private model = 'google/gemini-3.1-flash-lite-preview';
 
   constructor() {
     this.client = getOpenAIClient();
@@ -149,19 +149,25 @@ export class OpenAIService {
     chatContext: string,
     systemContext: { kpis: any[]; ogsm: any[] }
   ): Promise<{ response: string; actions?: any[] }> {
+    const lowerMessage = message.toLowerCase();
+    const actionKeywords = ['create', 'update', 'delete', 'set', 'change', 'add', 'remove', 'modify', 'edit'];
+    const isActionRequest = actionKeywords.some(keyword => lowerMessage.includes(keyword));
+
     const systemPrompt = `
 You are an AI Chief Strategy Officer for Robert Morris University Athletics. You help users manage KPIs and OGSM components.
 
+${isActionRequest ? `
 CRITICAL RULE: When a user asks you to CREATE, UPDATE, or DELETE anything, you MUST call the appropriate function tool immediately. DO NOT respond conversationally.
 
 AVAILABLE KPIs:
 ${systemContext.kpis.map(kpi => `- "${kpi.name}" (ID: ${kpi.id}, Current: ${kpi.current_value || 'null'} ${kpi.unit})`).join('\n')}
 
 When user asks to update a KPI, find its ID above and call update_kpi function with that exact ID.
+` : 'Keep responses brief and conversational unless the user asks for strategic advice.'}
     `;
 
     // Define function tools for OpenAI
-    const tools = [
+    const tools: any[] = isActionRequest ? [
       {
         type: 'function' as const,
         function: {
@@ -269,14 +275,9 @@ When user asks to update a KPI, find its ID above and call update_kpi function w
           },
         },
       },
-    ];
+    ] : [];
 
     try {
-      // Detect if the message is asking for an action (create, update, delete, set, change, add, remove)
-      const actionKeywords = ['create', 'update', 'delete', 'set', 'change', 'add', 'remove', 'modify', 'edit'];
-      const lowerMessage = message.toLowerCase();
-      const isActionRequest = actionKeywords.some(keyword => lowerMessage.includes(keyword));
-
       console.log('🤖 Sending to OpenAI with system prompt length:', systemPrompt.length);
       console.log('📝 User message:', message);
       console.log('🎯 Action request detected:', isActionRequest);
@@ -288,9 +289,9 @@ When user asks to update a KPI, find its ID above and call update_kpi function w
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message },
         ],
-        tools: tools,
-        tool_choice: isActionRequest ? 'required' : 'auto',  // Force function only for action requests
         temperature: 0.7,
+        max_tokens: 512,
+        ...(isActionRequest ? { tools, tool_choice: 'required' as const } : {}),
       });
 
       const responseMessage = completion.choices[0]?.message;
