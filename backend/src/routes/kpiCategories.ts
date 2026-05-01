@@ -205,7 +205,13 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     if (categoryCheck.rows[0].is_default) {
-      return res.status(400).json({ error: 'Cannot delete the default "Uncategorized" category' });
+      // Allow deletion only if there are other Uncategorized categories (duplicates)
+      const dupCount = await pool.query(
+        "SELECT COUNT(*) FROM kpi_categories WHERE is_default = true AND name = 'Uncategorized'"
+      );
+      if (parseInt(dupCount.rows[0].count) <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the only default "Uncategorized" category' });
+      }
     }
 
     // Get the default "Uncategorized" category ID
