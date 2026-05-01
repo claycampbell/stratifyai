@@ -502,13 +502,29 @@ export default function KPIs() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-              <input
-                type="text"
-                value={newKPI.unit}
-                onChange={(e) => setNewKPI({ ...newKPI, unit: e.target.value })}
+              <select
+                value={['$','%','count','hours','days','score',''].includes(newKPI.unit) ? newKPI.unit : 'custom'}
+                onChange={(e) => setNewKPI({ ...newKPI, unit: e.target.value === 'custom' ? '' : e.target.value })}
                 className="input"
-                placeholder="e.g., %, $, users"
-              />
+              >
+                <option value="">None</option>
+                <option value="$">$ (Dollars)</option>
+                <option value="%">% (Percent)</option>
+                <option value="count"># (Count)</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+                <option value="score">Score</option>
+                <option value="custom">Custom...</option>
+              </select>
+              {!['$','%','count','hours','days','score',''].includes(newKPI.unit) && (
+                <input
+                  type="text"
+                  value={newKPI.unit}
+                  onChange={(e) => setNewKPI({ ...newKPI, unit: e.target.value })}
+                  className="input mt-2"
+                  placeholder="Enter custom unit"
+                />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>

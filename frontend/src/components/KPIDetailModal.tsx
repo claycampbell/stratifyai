@@ -278,24 +278,32 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                     <div>
                       <p className="text-sm text-gray-600">Current Value</p>
                       {isEditing ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            value={editedKPI.current_value || ''}
-                            onChange={(e) =>
-                              setEditedKPI({ ...editedKPI, current_value: e.target.value })
-                            }
-                            className="text-2xl font-bold text-gray-900 border-b border-blue-500 w-20"
-                          />
-                          <input
-                            type="text"
-                            value={editedKPI.unit || ''}
-                            onChange={(e) =>
-                              setEditedKPI({ ...editedKPI, unit: e.target.value })
-                            }
-                            className="text-lg text-gray-600 border-b border-blue-500 w-16"
-                          />
-                        </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={editedKPI.current_value || ''}
+                        onChange={(e) =>
+                          setEditedKPI({ ...editedKPI, current_value: e.target.value })
+                        }
+                        className="text-2xl font-bold text-gray-900 border-b border-blue-500 w-20"
+                      />
+                      <select
+                        value={['$','%','count','hours','days','score',''].includes(editedKPI.unit) ? editedKPI.unit : 'custom'}
+                        onChange={(e) =>
+                          setEditedKPI({ ...editedKPI, unit: e.target.value === 'custom' ? '' : e.target.value })
+                        }
+                        className="text-lg text-gray-600 border-b border-blue-500"
+                      >
+                        <option value="">None</option>
+                        <option value="$">$</option>
+                        <option value="%">%</option>
+                        <option value="count">#</option>
+                        <option value="hours">hrs</option>
+                        <option value="days">days</option>
+                        <option value="score">score</option>
+                        <option value="custom">...</option>
+                      </select>
+                    </div>
                       ) : (
                         <p className="text-2xl font-bold text-gray-900 mt-1">
                           {formatKPIValue(kpi.current_value, kpi.unit)}
