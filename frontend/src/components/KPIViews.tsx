@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle, Trash2, Target } from 'lucide-react';
+import { formatKPIValue } from '@/lib/formatters';
 
 const statusColors: Record<string, string> = {
   on_track: 'bg-green-100 text-green-800 border-green-200',
@@ -102,8 +103,8 @@ export default function KPIViews({ kpis, isLoading, onKPIClick, onKPIDelete }: K
                 />
               </div>
               <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>{kpi.current_value ?? 0} {kpi.unit}</span>
-                <span>Target: {kpi.target_value ?? 'N/A'} {kpi.unit}</span>
+                <span>{formatKPIValue(kpi.current_value, kpi.unit)}</span>
+                <span>Target: {formatKPIValue(kpi.target_value, kpi.unit)}</span>
               </div>
             </div>
 
