@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { aiApi } from '@/lib/api';
-import { Plus, FileText, Trash2 } from 'lucide-react';
+import { Plus, FileText, Trash2, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 
 const reportTypes = [
   { value: '30_day', label: '30 Day Report' },
@@ -49,6 +50,15 @@ export default function Reports() {
     if (newReport.title) {
       generateMutation.mutate(newReport);
     }
+  };
+
+  const handleExport = () => {
+    if (!selectedReport?.content) return;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${selectedReport.title}</title><style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.6}h1,h2,h3{color:#111}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}code{background:#f0f0f0;padding:2px 6px;border-radius:3px}pre{background:#f5f5f5;padding:16px;border-radius:8px;overflow-x:auto}</style></head><body>${selectedReport.content.replace(/\n/g, '<br>')}</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${selectedReport.title.replace(/\s+/g, '_')}.html`;
+    a.click(); URL.revokeObjectURL(url);
   };
 
   return (
@@ -175,19 +185,43 @@ export default function Reports() {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">{selectedReport.title}</h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    Generated on {format(new Date(selectedReport.created_at), 'MMMM dd, yyyy')}
+                    {selectedReport.report_type?.replace('_', ' day')} — Generated on {format(new Date(selectedReport.created_at), 'MMMM dd, yyyy')}
                   </p>
                 </div>
-                <button
-                  onClick={() => deleteMutation.mutate(selectedReport.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={handleExport} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Export as HTML">
+                    <Download className="h-5 w-5" />
+                  </button>
+                  <button onClick={() => deleteMutation.mutate(selectedReport.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="prose max-w-none">
-                <div className="whitespace-pre-wrap text-gray-700">{selectedReport.content}</div>
+              <div className="prose prose-blue max-w-none">
+                <ReactMarkdown
+                  components={{
+                    h1: ({ children }) => <h1 className="text-2xl font-bold text-gray-900 mt-8 mb-4 pb-2 border-b">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-lg font-semibold text-gray-900 mt-5 mb-2">{children}</h3>,
+                    p: ({ children }) => <p className="text-gray-700 leading-relaxed mb-4">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-1">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-1">{children}</ol>,
+                    li: ({ children }) => <li className="text-gray-700">{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                    code: ({ className, children }: any) => {
+                      const isInline = !className;
+                      return isInline
+                        ? <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-pink-600">{children}</code>
+                        : <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto mb-4"><code className="text-sm font-mono">{children}</code></pre>;
+                    },
+                    table: ({ children }) => <div className="overflow-x-auto mb-4"><table className="min-w-full border-collapse border">{children}</table></div>,
+                    th: ({ children }) => <th className="border px-3 py-2 bg-gray-50 text-left text-sm font-semibold">{children}</th>,
+                    td: ({ children }) => <td className="border px-3 py-2 text-sm">{children}</td>,
+                  }}
+                >
+                  {selectedReport.content}
+                </ReactMarkdown>
               </div>
             </div>
           ) : (

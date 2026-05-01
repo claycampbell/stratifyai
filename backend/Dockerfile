@@ -34,21 +34,12 @@ COPY --from=builder /app/dist ./dist
 COPY src/database/init.sql ./src/database/init.sql
 COPY src/database/migrations ./src/database/migrations
 
-# Copy migration scripts
-COPY create-strategic-tables.sql ./
-
 # Create uploads directory
 RUN mkdir -p uploads
 
 # Set default environment variables (ALL must be overridden at runtime)
 ENV NODE_ENV=production
 ENV PORT=8000
-ENV DB_HOST=
-ENV DB_PORT=5432
-ENV DB_NAME=
-ENV DB_USER=
-ENV DB_PASSWORD=
-ENV GEMINI_API_KEY=
 ENV MAX_FILE_SIZE=10485760
 ENV UPLOAD_DIR=/app/uploads
 
