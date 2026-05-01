@@ -2,15 +2,13 @@ import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { kpisApi, kpiCategoriesApi, fiscalPlanningApi } from '@/lib/api';
 import { KPICategory } from '@/types';
-import { Plus, Upload, Trash2, Filter, X, Sparkles, LayoutGrid, List, Rows, Settings, Copy } from 'lucide-react';
+import { Plus, Upload, Trash2, Filter, X, Sparkles, Settings, Copy } from 'lucide-react';
 import KPIDetailModal from '@/components/KPIDetailModal';
 import KPITemplatesBrowser from '@/components/KPITemplatesBrowser';
 import KPIViews from '@/components/KPIViews';
 import CategoryManagementModal from '@/components/CategoryManagementModal';
-import { usePreference } from '@/contexts/UserPreferencesContext';
 
 export default function KPIs() {
-  const [viewMode, setViewMode] = usePreference('kpi_dashboard_view');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedKpiId, setSelectedKpiId] = useState<string | null>(null);
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
@@ -255,43 +253,6 @@ export default function KPIs() {
           <p className="mt-2 text-gray-600">Track and manage your KPIs</p>
         </div>
         <div className="flex gap-3">
-          {/* View Mode Switcher */}
-          <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
-            <button
-              onClick={() => setViewMode('boxes')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'boxes'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              title="Box View"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              title="List View"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('compact')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'compact'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              title="Compact View"
-            >
-              <Rows className="h-4 w-4" />
-            </button>
-          </div>
-
           {fiscalPlanFilter !== 'all' && (
             <button
               onClick={() => setShowCopyModal(true)}
@@ -316,14 +277,14 @@ export default function KPIs() {
             className="btn btn-secondary flex items-center"
           >
             <Settings className="h-4 w-4 mr-2" />
-            Manage Categories
+            Categories
           </button>
           <button
             onClick={() => setShowTemplates(true)}
             className="btn btn-secondary flex items-center"
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            Browse Templates
+            Templates
           </button>
           <button
             onClick={handleImportClick}
@@ -331,7 +292,7 @@ export default function KPIs() {
             className="btn btn-secondary flex items-center"
           >
             <Upload className="h-4 w-4 mr-2" />
-            {importMutation.isPending ? 'Importing...' : 'Import from CSV'}
+            {importMutation.isPending ? 'Importing...' : 'Import CSV'}
           </button>
           <button
             onClick={() => setIsCreating(true)}
@@ -622,11 +583,10 @@ export default function KPIs() {
         </div>
       )}
 
-      {/* KPIs Display - Supports Boxes, List, and Compact views */}
+      {/* KPIs Display */}
       <KPIViews
         kpis={filteredKpis || []}
         isLoading={isLoading}
-        viewMode={viewMode || 'boxes'}
         onKPIClick={(id) => setSelectedKpiId(id)}
         onKPIDelete={handleDelete}
       />

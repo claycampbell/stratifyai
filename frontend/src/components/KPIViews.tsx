@@ -1,278 +1,137 @@
-import { TrendingUp, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Trash2, Target } from 'lucide-react';
 
-const statusColors = {
-  on_track: 'bg-green-100 text-green-800',
-  at_risk: 'bg-yellow-100 text-yellow-800',
-  off_track: 'bg-red-100 text-red-800',
+const statusColors: Record<string, string> = {
+  on_track: 'bg-green-100 text-green-800 border-green-200',
+  at_risk: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  off_track: 'bg-red-100 text-red-800 border-red-200',
 };
 
-const statusIcons = {
+const statusIcons: Record<string, typeof CheckCircle> = {
   on_track: CheckCircle,
   at_risk: AlertCircle,
   off_track: AlertCircle,
 };
 
+const progressColors = [
+  { threshold: 90, color: 'bg-green-500' },
+  { threshold: 70, color: 'bg-blue-500' },
+  { threshold: 50, color: 'bg-yellow-500' },
+  { threshold: 0, color: 'bg-red-500' },
+];
+
+function getProgressColor(progress: number): string {
+  for (const pc of progressColors) {
+    if (progress >= pc.threshold) return pc.color;
+  }
+  return 'bg-gray-500';
+}
+
 interface KPIViewsProps {
   kpis: any[];
   isLoading: boolean;
-  viewMode: 'boxes' | 'list' | 'compact';
+  viewMode?: string;
   onKPIClick: (id: string) => void;
   onKPIDelete: (e: React.MouseEvent, id: string) => void;
 }
 
-export default function KPIViews({ kpis, isLoading, viewMode, onKPIClick, onKPIDelete }: KPIViewsProps) {
+export default function KPIViews({ kpis, isLoading, onKPIClick, onKPIDelete }: KPIViewsProps) {
   if (isLoading) {
-    return <p className="text-gray-600">Loading KPIs...</p>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   if (!kpis || kpis.length === 0) {
     return (
-      <div className="col-span-full text-center py-12">
-        <p className="text-gray-600">No KPIs found. Create your first KPI!</p>
+      <div className="text-center py-16">
+        <Target className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+        <p className="text-lg font-medium text-gray-600">No KPIs found</p>
+        <p className="text-sm text-gray-500 mt-1">Create your first KPI to get started</p>
       </div>
     );
   }
 
-  // Helper to parse description fields
-  const parseFields = (description?: string) => {
-    const descParts = description ? description.split(' | ') : [];
-    const fields: Record<string, string> = {};
-    descParts.forEach((part: string) => {
-      const [key, ...valueParts] = part.split(': ');
-      if (key && valueParts.length > 0) {
-        fields[key] = valueParts.join(': ');
-      }
-    });
-    return fields;
-  };
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {kpis.map((kpi: any) => {
+        const StatusIcon = statusIcons[kpi.status] || AlertCircle;
+        const progress = kpi.target_value && kpi.current_value
+          ? Math.min((kpi.current_value / kpi.target_value) * 100, 100)
+          : 0;
 
-  // BOX VIEW (current default)
-  if (viewMode === 'boxes') {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {kpis.map((kpi: any) => {
-          const StatusIcon = statusIcons[kpi.status as keyof typeof statusIcons] || AlertCircle;
-          const fields = parseFields(kpi.description);
-
-          return (
-            <div
-              key={kpi.id}
-              className="card cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => onKPIClick(kpi.id)}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-1">{kpi.name}</h3>
-                  <span
-                    className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                      statusColors[kpi.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    <StatusIcon className="h-3 w-3 mr-1" />
-                    {kpi.status.replace('_', ' ')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => onKPIDelete(e, kpi.id)}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete KPI"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  <TrendingUp className="h-5 w-5 text-gray-400" />
-                </div>
+        return (
+          <div
+            key={kpi.id}
+            className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-200 cursor-pointer"
+            onClick={() => onKPIClick(kpi.id)}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate">{kpi.name}</h3>
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full border mt-1.5 ${
+                    statusColors[kpi.status] || 'bg-gray-100 text-gray-800 border-gray-200'
+                  }`}
+                >
+                  <StatusIcon className="h-3 w-3 mr-1" />
+                  {kpi.status.replace(/_/g, ' ')}
+                </span>
               </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onKPIDelete(e, kpi.id); }}
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                title="Delete KPI"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
 
-              <div className="space-y-2">
-                {kpi.ownership && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Ownership</span>
-                    <span className="font-semibold">{kpi.ownership}</span>
-                  </div>
-                )}
-                {kpi.persons_responsible && kpi.persons_responsible.length > 0 && (
-                  <div className="flex flex-col text-sm gap-1">
-                    <span className="text-gray-600">Team</span>
-                    <div className="flex flex-wrap gap-1">
-                      {kpi.persons_responsible.map((person: string, idx: number) => (
-                        <span key={idx} className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          {person}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {fields.Goal && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Goal</span>
-                    <span className="font-semibold">{fields.Goal}</span>
-                  </div>
-                )}
-                <div className="pt-2 mt-2 border-t border-gray-200">
-                  <span className="text-xs text-gray-500 capitalize">
-                    Frequency: {kpi.frequency}
-                  </span>
-                </div>
+            {/* Progress Bar */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-sm mb-1.5">
+                <span className="text-gray-500">Progress</span>
+                <span className="font-semibold text-gray-900">{Math.round(progress)}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className={`h-2.5 rounded-full transition-all duration-500 ${getProgressColor(progress)}`}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>{kpi.current_value ?? 0} {kpi.unit}</span>
+                <span>Target: {kpi.target_value ?? 'N/A'} {kpi.unit}</span>
               </div>
             </div>
-          );
-        })}
-      </div>
-    );
-  }
 
-  // LIST VIEW
-  if (viewMode === 'list') {
-    return (
-      <div className="space-y-3">
-        {kpis.map((kpi: any) => {
-          const StatusIcon = statusIcons[kpi.status as keyof typeof statusIcons] || AlertCircle;
-          const fields = parseFields(kpi.description);
-
-          return (
-            <div
-              key={kpi.id}
-              className="card cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => onKPIClick(kpi.id)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-gray-900">{kpi.name}</h3>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                        statusColors[kpi.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      <StatusIcon className="h-3 w-3 mr-1" />
-                      {kpi.status.replace('_', ' ')}
+            {/* Metadata */}
+            <div className="space-y-2 text-sm">
+              {kpi.ownership && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Owner</span>
+                  <span className="font-medium text-gray-900 truncate ml-2">{kpi.ownership}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Frequency</span>
+                <span className="font-medium text-gray-900 capitalize">{kpi.frequency}</span>
+              </div>
+              {(kpi.persons_responsible?.length > 0) && (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {kpi.persons_responsible.map((person: string, idx: number) => (
+                    <span key={idx} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
+                      {person}
                     </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    {kpi.ownership && (
-                      <div>
-                        <span className="text-gray-600">Ownership:</span>{' '}
-                        <span className="font-semibold">{kpi.ownership}</span>
-                      </div>
-                    )}
-                    {fields.Goal && (
-                      <div>
-                        <span className="text-gray-600">Goal:</span>{' '}
-                        <span className="font-semibold">{fields.Goal}</span>
-                      </div>
-                    )}
-                    <div>
-                      <span className="text-gray-600">Frequency:</span>{' '}
-                      <span className="font-semibold capitalize">{kpi.frequency}</span>
-                    </div>
-                    {kpi.persons_responsible && kpi.persons_responsible.length > 0 && (
-                      <div>
-                        <span className="text-gray-600">Team:</span>{' '}
-                        <span className="font-semibold">{kpi.persons_responsible.join(', ')}</span>
-                      </div>
-                    )}
-                  </div>
+                  ))}
                 </div>
-
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={(e) => onKPIDelete(e, kpi.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete KPI"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                  <TrendingUp className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
+              )}
             </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // COMPACT VIEW (Table-like)
-  if (viewMode === 'compact') {
-    return (
-      <div className="card overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ownership
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Goal
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Frequency
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {kpis.map((kpi: any) => {
-                const StatusIcon = statusIcons[kpi.status as keyof typeof statusIcons] || AlertCircle;
-                const fields = parseFields(kpi.description);
-
-                return (
-                  <tr
-                    key={kpi.id}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => onKPIClick(kpi.id)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{kpi.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                          statusColors[kpi.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        <StatusIcon className="h-3 w-3 mr-1" />
-                        {kpi.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {kpi.ownership || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {fields.Goal || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
-                      {kpi.frequency}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={(e) => onKPIDelete(e, kpi.id)}
-                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                        title="Delete KPI"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+          </div>
+        );
+      })}
+    </div>
+  );
 }
