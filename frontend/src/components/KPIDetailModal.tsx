@@ -114,8 +114,18 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
   });
 
   const handleUpdate = () => {
-    console.log('handleUpdate called with:', editedKPI);
-    updateMutation.mutate(editedKPI);
+    const parseNum = (v: any) => {
+      if (v === '' || v === null || v === undefined) return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    };
+    const payload = {
+      ...editedKPI,
+      target_value: parseNum(editedKPI.target_value),
+      current_value: parseNum(editedKPI.current_value),
+      category_id: editedKPI.category_id || null,
+    };
+    updateMutation.mutate(payload);
   };
 
   const handleAddHistory = () => {
