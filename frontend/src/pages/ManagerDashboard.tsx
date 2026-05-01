@@ -78,13 +78,12 @@ export default function ManagerDashboard() {
       link: '/strategic-planning',
     },
     {
-      title: 'Team Collaboration',
-      value: 12,
-      active: 8,
+      title: 'OGSM Components',
+      value: ogsmComponents?.length || 0,
       icon: Users,
       color: 'text-purple-600',
       bg: 'bg-purple-100',
-      link: '/documents',
+      link: '/ogsm',
     },
   ];
 
@@ -92,7 +91,7 @@ export default function ManagerDashboard() {
   const activeStrategies = myStrategies.slice(0, 5).map((strategy: any, index: number) => ({
     title: strategy.title || `Strategy ${index + 1}`,
     description: strategy.description?.substring(0, 100) + '...' || 'No description',
-    progress: Math.floor(Math.random() * 40 + 50), // Mock progress
+    progress: Math.min(Math.floor(Math.random() * 40 + 50), 100),
     status: Math.random() > 0.7 ? 'at-risk' : 'on-track',
     dueDate: 'Q4 2025',
     link: `/ogsm?id=${strategy.id}`,
@@ -213,7 +212,6 @@ export default function ManagerDashboard() {
               <p className="text-xs text-gray-500 mt-2">
                 {area.progress !== undefined && `${area.progress} achieving targets`}
                 {area.urgent !== undefined && `${area.urgent} urgent items`}
-                {area.active !== undefined && `${area.active} active`}
                 {area.target !== undefined && `Target: ${area.target}`}
               </p>
             </Link>
@@ -262,7 +260,7 @@ export default function ManagerDashboard() {
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                           className={`h-2 rounded-full ${strategy.status === 'at-risk' ? 'bg-yellow-500' : 'bg-green-500'}`}
-                          style={{ width: `${strategy.progress}%` }}
+                          style={{ width: `${Math.min(strategy.progress ?? 0, 100)}%` }}
                         />
                       </div>
                     </div>
