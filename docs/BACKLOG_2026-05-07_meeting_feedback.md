@@ -96,15 +96,18 @@ Backlog generated from stakeholder review of the deployed site with Stephen (Ath
 **Problem.** OGSM components currently use the `description` field as a workaround to convey priority. With 50+ items, "everything is priority 1" is meaningless. Users need genuine stack-ranking.
 
 **Scope.**
-- Add `rank` (integer) column to `ogsm_components` in `backend/src/database/init.sql` (and a migration script — schema is auto-init only; per `CLAUDE.md` migrations are not built in, so add a one-shot migration consistent with existing migration files in `backend/src/database/migrations/`).
+- Add `rank` (integer) column to `ogsm_components` in **two places** — there is no migration runner in this codebase (per `CLAUDE.md`, schema auto-initializes from `init.sql` on first startup):
+  1. **`backend/src/database/init.sql`** — so fresh deploys get the column.
+  2. **A standalone DDL script under `backend/src/database/migrations/`** (consistent with existing files like `add_kpis_tags_column.sql`, `fix_missing_tags_columns.sql`) that an operator runs **manually against the existing production DB**. Document the run command in the PR description. "Migration" in this repo = manual DDL, not auto-applied — do not assume it runs itself.
 - Update backend types in `backend/src/types/index.ts` and frontend types in `frontend/src/types/index.ts`.
 - Update OGSM CRUD routes in `backend/src/routes/ogsm.ts` to accept and return `rank`.
 - Update OGSM list views (`frontend/src/pages/OGSMView.tsx`, `frontend/src/components/OGSMTreeView.tsx`) to sort by `rank` and render rank inline.
-- Backfill: assign ranks based on current creation order on migration run.
+- Backfill: the manual DDL script should also assign sequential ranks to existing rows based on creation order in the same transaction.
 
 **Acceptance criteria.**
 - A user can set rank on any OGSM component; list views default to rank-asc.
-- Existing items get sequential ranks on first deploy (no nulls left over).
+- Existing items get sequential ranks after the manual DDL script runs (no nulls left over).
+- Fresh deploys created from `init.sql` alone (no manual script run) also have the column with a sane default.
 
 ---
 
@@ -146,9 +149,11 @@ Backlog generated from stakeholder review of the deployed site with Stephen (Ath
 ### K-2 — Cleanup pass on existing KPIs [P1]
 **Problem.** Production KPIs include duplicate categories, sample/fake KPIs, and items with no owner.
 
+**Pre-step (required before sub-task 2).** Inventory all KPIs in production and confirm an identification method for "sample/fake." Check in this order: (a) is there an `is_sample` / `is_demo` column already on `kpis`? (b) is there a consistent naming pattern (e.g., "Sample —" prefix, "Test KPI", lorem-ipsum strings)? (c) if neither, produce a manual list of IDs with Stephen/Chris and treat that as the deletion set. **Do not delete anything until the identification method is confirmed in the PR description.**
+
 **Scope.** Three sub-tasks, can be one PR:
 1. **De-dup categories.** Identify duplicate categories (case-insensitive, whitespace-trimmed) in `kpi_categories`; merge by reassigning KPIs to the canonical row, then deleting the duplicate. Provide a dry-run script first; Sid runs it against prod after review.
-2. **Remove sample/fake KPIs.** Identify by naming convention or a `is_sample` flag if present; delete them and their `kpi_history`.
+2. **Remove sample/fake KPIs.** Use the identification method established in the pre-step. Delete the matching KPIs and their `kpi_history` in a single transaction. Dry-run output reviewed before destructive run.
 3. **Owner audit.** Find KPIs with null/empty owner. Either assign a default owner (Chris) or surface them in an admin "needs owner" queue.
 
 **Acceptance criteria.**
@@ -163,8 +168,10 @@ Backlog generated from stakeholder review of the deployed site with Stephen (Ath
 ### K-3 — Add fiscal year selector + move/clone actions [P1]
 **Problem.** KPIs and initiatives don't have first-class fiscal year handling. Real workflows (Stephen described the 412 campaign pushing FY26→FY27, Women's Success Fund repeating annually) require this.
 
+**Pre-step (required).** Read `docs/plans/2026-01-08-fiscal-year-planning-mode-design.md` and inspect existing `fiscal_year_plans`, `fiscal_year_priorities`, `fiscal_year_draft_strategies` tables to confirm the column convention already in use. The design doc may use integer columns (e.g., `fy_start_year` / `fy_end_year`) rather than the `FY26-27` string format suggested below. **Adopt whatever convention is already in the schema** — do not introduce a parallel format. Document the chosen column shape in the PR description before writing migration DDL.
+
 **Scope.**
-- Add `fiscal_year` field (string, e.g., `FY26-27`) to `kpis` and to `initiatives` (already partial fiscal-year scaffolding exists per `docs/plans/2026-01-08-fiscal-year-planning-mode-design.md` — reuse those tables/conventions where possible).
+- Add a fiscal-year reference (column shape per pre-step — likely a foreign key to `fiscal_year_plans` or matching int columns, NOT necessarily a free-string `fiscal_year`) to `kpis` and to `initiatives`.
 - "Move to fiscal year" — single-action change of the field (preserves identity + history).
 - "Duplicate to fiscal year" — deep-copy: new row with reset history, same metadata, new fiscal year.
 - Surface a fiscal year selector at the top of `KPIs.tsx` and the equivalent on the initiatives view.
@@ -366,9 +373,12 @@ Likely outcome per meeting: 30/60/90 = individual-level, Strategic Planning = de
 - Scheduling: a config that can run a template on a cron (e.g., every Sunday 9pm) for a list of users / departments and store results. Initial implementation can be a server-side scheduled job (node-cron or similar) — does not need a full job system for v1.
 - Surface scheduled reports in a "Scheduled" tab in `Reports.tsx`.
 
+**Known limitation (v1).** In-process cron (e.g., `node-cron` running inside the Express backend) does not survive process restarts gracefully and will fire duplicate jobs under any horizontally-scaled / multi-instance deployment, with no built-in retry or failure recovery. This is acceptable for v1 given current single-instance Azure deployment, but: (a) call it out in the PR, (b) write the scheduling abstraction so it can be swapped for an external runner (BullMQ + Redis, Azure Functions on a timer, or similar) later, and (c) plan to migrate before scheduled reports become critical-path for stakeholders.
+
 **Acceptance criteria.**
 - Refresh works; refreshed runs are stored alongside the original.
 - A scheduled report runs on its cron and is viewable when the recipient opens the app.
+- Scheduling code is isolated behind a small interface (e.g., `ReportScheduler.schedule(template, params, cron)`) so the in-process implementation can be replaced without touching call sites.
 
 ---
 
