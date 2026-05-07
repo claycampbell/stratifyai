@@ -587,5 +587,19 @@ CREATE INDEX IF NOT EXISTS idx_draft_strategies_status ON fiscal_year_draft_stra
 -- Add FK from kpis to fiscal_year_draft_strategies (table created above)
 -- Deferred FK constraints (tables they reference are created above or in migrations)
 ALTER TABLE kpis ADD CONSTRAINT fk_kpis_source_strategy
-  FOREIGN KEY (source_strategy_id) REFERENCES fiscal_year_draft_strategies(id) ON DELETE SET NULL;  
+  FOREIGN KEY (source_strategy_id) REFERENCES fiscal_year_draft_strategies(id) ON DELETE SET NULL;
 -- Note: FK constraints referencing users(id) are defined in 002_authentication_system.sql migration
+
+-- ============================================================
+-- V-1/V-2: Source-entity tracking for AI recommendation validations
+-- ============================================================
+-- Adds nullable columns so a validation row can point back to the entity
+-- whose change triggered the AI recommendation (KPI update, OGSM edit,
+-- plan-item change, etc.). Both columns are nullable because not every
+-- validation is anchored to a single domain entity.
+ALTER TABLE ai_recommendation_validations
+  ADD COLUMN IF NOT EXISTS source_entity_type VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS source_entity_id UUID;
+
+CREATE INDEX IF NOT EXISTS idx_validations_source_entity
+  ON ai_recommendation_validations(source_entity_type, source_entity_id);

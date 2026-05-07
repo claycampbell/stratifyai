@@ -4,6 +4,13 @@ import pool from '../config/database';
 import openaiService from '../services/openaiService';
 import philosophyService from '../services/philosophyService';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import {
+  reportTemplateDefinitions,
+  assembleTemplateData,
+  buildTemplatePrompt,
+  getTemplateById,
+} from '../services/reportTemplates';
+import { getOpenAIClient } from '../config/openai';
 
 const router = Router();
 
@@ -664,6 +671,93 @@ router.post('/reports/generate', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error generating report:', error);
     res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+// ============================================================================
+// R-1 / R-2 / R-4: Pre-canned, scope-constrained report templates.
+//
+// The free-text /reports/generate endpoint above is kept as the "advanced"
+// option. New flows should prefer template-based generation so that the
+// prompt receives ONLY the rows in scope for the subject of the report.
+// ============================================================================
+
+// List available report templates
+router.get('/reports/templates', async (_req: Request, res: Response) => {
+  try {
+    res.json(
+      reportTemplateDefinitions.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        report_type: t.report_type,
+        parameters: t.parameters,
+        data_sources: t.data_sources,
+      }))
+    );
+  } catch (error) {
+    console.error('Error listing report templates:', error);
+    res.status(500).json({ error: 'Failed to list report templates' });
+  }
+});
+
+// Generate a report from a template + parameters
+router.post('/reports/from-template', async (req: Request, res: Response) => {
+  try {
+    const { template_id, params } = req.body || {};
+    if (!template_id) {
+      return res.status(400).json({ error: 'template_id is required' });
+    }
+
+    const template = getTemplateById(template_id);
+    if (!template) {
+      return res.status(404).json({ error: `Unknown template: ${template_id}` });
+    }
+
+    // Pre-filter the data to the subject. The bundle returned here is the
+    // ONLY data the prompt will see — see the scope contract in
+    // backend/src/services/reportTemplates.ts.
+    const bundle = await assembleTemplateData(template_id, params || {});
+    const prompt = buildTemplatePrompt(bundle);
+
+    // Call OpenAI directly so we control the prompt verbatim. We don't use
+    // the existing generateProgressReport() because it appends additional
+    // free-form context that would defeat the scope contract.
+    const client = getOpenAIClient();
+    const completion = await client.chat.completions.create({
+      // Match the model used elsewhere in OpenAIService.
+      model: (openaiService as any).model || 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4,
+    });
+
+    const content =
+      completion.choices[0]?.message?.content?.trim() ||
+      'Failed to generate report.';
+
+    const title = `${template.name}: ${bundle.subject_label}`;
+    const result = await pool.query(
+      `INSERT INTO strategic_reports (report_type, title, content, generated_by, metadata)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [
+        template.report_type,
+        title,
+        content,
+        'ai',
+        JSON.stringify({
+          template_id,
+          params: bundle.resolved_params,
+          subject_label: bundle.subject_label,
+        }),
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error generating report from template:', error);
+    res
+      .status(500)
+      .json({ error: 'Failed to generate report from template', details: error?.message });
   }
 });
 
