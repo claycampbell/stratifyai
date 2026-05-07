@@ -14,6 +14,7 @@ import {
   Edit2,
   Save,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 
 interface PlanItemDetailModalProps {
@@ -36,6 +37,7 @@ export default function PlanItemDetailModal({ item, onClose, onUpdate }: PlanIte
     completion_percentage: item.completion_percentage,
     target_completion_date: item.target_completion_date || '',
     notes: item.notes || '',
+    timeframe: item.timeframe,
   });
 
   // Update form state
@@ -76,6 +78,26 @@ export default function PlanItemDetailModal({ item, onClose, onUpdate }: PlanIte
     },
   });
 
+  // Delete item mutation
+  const deleteItemMutation = useMutation({
+    mutationFn: () => planItemsApi.delete(item.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plan-items'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-plan'] });
+      onUpdate();
+      onClose();
+    },
+    onError: (err: any) => {
+      alert(`Failed to delete: ${err.response?.data?.error || err.message}`);
+    },
+  });
+
+  const handleDelete = () => {
+    if (window.confirm(`Delete "${item.title}"? This cannot be undone.`)) {
+      deleteItemMutation.mutate();
+    }
+  };
+
   const handleSaveEdit = () => {
     const previousStatus = item.status;
     const previousPercentage = item.completion_percentage;
@@ -89,6 +111,7 @@ export default function PlanItemDetailModal({ item, onClose, onUpdate }: PlanIte
       completion_percentage: editForm.completion_percentage,
       target_completion_date: editForm.target_completion_date || null,
       notes: editForm.notes,
+      timeframe: editForm.timeframe,
     };
 
     // Update the item
@@ -130,6 +153,7 @@ export default function PlanItemDetailModal({ item, onClose, onUpdate }: PlanIte
       completion_percentage: item.completion_percentage,
       target_completion_date: item.target_completion_date || '',
       notes: item.notes || '',
+      timeframe: item.timeframe,
     });
     setIsEditing(false);
   };
@@ -290,14 +314,30 @@ export default function PlanItemDetailModal({ item, onClose, onUpdate }: PlanIte
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Target Completion Date</label>
-                <input
-                  type="date"
-                  value={editForm.target_completion_date}
-                  onChange={(e) => setEditForm({ ...editForm, target_completion_date: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Bucket</label>
+                  <select
+                    value={editForm.timeframe}
+                    onChange={(e) => setEditForm({ ...editForm, timeframe: e.target.value as any })}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="30_days">30 Days</option>
+                    <option value="60_days">60 Days</option>
+                    <option value="90_days">90 Days</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Move this item between 30/60/90 buckets</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Target Completion Date</label>
+                  <input
+                    type="date"
+                    value={editForm.target_completion_date}
+                    onChange={(e) => setEditForm({ ...editForm, target_completion_date: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
               </div>
 
               <div>
@@ -311,20 +351,30 @@ export default function PlanItemDetailModal({ item, onClose, onUpdate }: PlanIte
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex justify-between items-center gap-3 pt-4">
                 <button
-                  onClick={handleSaveEdit}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                  onClick={handleDelete}
+                  disabled={deleteItemMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50"
                 >
-                  <Save className="h-4 w-4" />
-                  Save Changes
+                  <Trash2 className="h-4 w-4" />
+                  {deleteItemMutation.isPending ? 'Deleting...' : 'Delete Item'}
                 </button>
-                <button
-                  onClick={handleCancelEdit}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

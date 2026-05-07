@@ -521,7 +521,37 @@ export interface AIRecommendationValidation {
   };
   conflict_resolution?: string;
   transparency_score?: number;
+  source_entity_type?: 'kpi_update' | 'ogsm_edit' | 'plan_item_change' | string;
+  source_entity_id?: string;
   created_at: string;
+}
+
+// V-1/V-2: returned by GET /api/philosophy/validations/:id. Shape varies by
+// entity type; consumers should branch on .type.
+export interface ValidationSourceEntitySnapshot {
+  type: 'kpi' | 'ogsm_component' | 'plan_item';
+  id: string;
+  name?: string;
+  current_value?: number | null;
+  target_value?: number | null;
+  unit?: string | null;
+  title?: string;
+  component_type?: string;
+  timeframe?: string;
+  status?: string;
+}
+
+export interface ValidationDetail extends AIRecommendationValidation {
+  violated_non_negotiables?: Array<{
+    id: string;
+    rule_number: number;
+    title: string;
+    description: string;
+    auto_reject: boolean;
+  }>;
+  source_entity?: ValidationSourceEntitySnapshot | null;
+  actor_name?: string | null;
+  actor_user_id?: string | null;
 }
 
 export interface ValidationResult {

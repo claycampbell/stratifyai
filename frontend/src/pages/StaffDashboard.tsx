@@ -15,6 +15,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import PriorityActionsList from '@/components/PriorityActionsList';
 
 export default function StaffDashboard() {
   const { user } = useAuth();
@@ -165,6 +166,12 @@ export default function StaffDashboard() {
           Here's what needs your attention today
         </p>
       </div>
+
+      {/* Priority Actions + Area Health (PA-1 / PA-2) */}
+      <PriorityActionsList
+        userId={user?.id}
+        userName={user ? `${user.first_name} ${user.last_name}`.trim() : null}
+      />
 
       {/* Task Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

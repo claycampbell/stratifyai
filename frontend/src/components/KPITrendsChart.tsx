@@ -64,6 +64,11 @@ export default function KPITrendsChart({ analytics }: KPITrendsChartProps) {
             <div>
               <p className="text-sm text-gray-600 mb-3">
                 Tracking: <span className="font-semibold">{displayedKPI.name}</span>
+                {displayedKPI.data.length === 1 && (
+                  <span className="ml-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                    First entry
+                  </span>
+                )}
               </p>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={displayedKPI.data}>
@@ -77,8 +82,10 @@ export default function KPITrendsChart({ analytics }: KPITrendsChartProps) {
                     dataKey="value"
                     stroke="#3b82f6"
                     strokeWidth={3}
-                    dot={{ r: 5 }}
+                    dot={{ r: displayedKPI.data.length === 1 ? 8 : 5 }}
+                    activeDot={{ r: displayedKPI.data.length === 1 ? 10 : 7 }}
                     name={`Value (${displayedKPI.unit})`}
+                    isAnimationActive={false}
                   />
                 </LineChart>
               </ResponsiveContainer>

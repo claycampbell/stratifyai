@@ -62,12 +62,33 @@ api.interceptors.response.use(
 export default api;
 
 // Documents API
+export interface DocumentUploadOptions {
+  extract_ogsm?: boolean;
+  extract_kpis?: boolean;
+  feed_strategic_planning?: boolean;
+  store_only?: boolean;
+}
+
 export const documentsApi = {
   getAll: () => api.get('/documents'),
   getById: (id: string) => api.get(`/documents/${id}`),
-  upload: (file: File) => {
+  upload: (file: File, options?: DocumentUploadOptions) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (options) {
+      if (options.extract_ogsm !== undefined) {
+        formData.append('extract_ogsm', String(options.extract_ogsm));
+      }
+      if (options.extract_kpis !== undefined) {
+        formData.append('extract_kpis', String(options.extract_kpis));
+      }
+      if (options.feed_strategic_planning !== undefined) {
+        formData.append('feed_strategic_planning', String(options.feed_strategic_planning));
+      }
+      if (options.store_only !== undefined) {
+        formData.append('store_only', String(options.store_only));
+      }
+    }
     return api.post('/documents/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -154,6 +175,10 @@ export const aiApi = {
   analyze: (type: string) => api.post('/ai/analyze', { type }),
   generateReport: (reportType: string, title: string, timeframe?: string) =>
     api.post('/ai/reports/generate', { report_type: reportType, title, timeframe }),
+  // R-1 / R-2: pre-canned report templates with constrained data scope.
+  getReportTemplates: () => api.get('/ai/reports/templates'),
+  generateFromTemplate: (templateId: string, params: Record<string, any>) =>
+    api.post('/ai/reports/from-template', { template_id: templateId, params }),
   getReports: (reportType?: string) => api.get('/ai/reports', { params: { report_type: reportType } }),
   getReportById: (id: string) => api.get(`/ai/reports/${id}`),
   deleteReport: (id: string) => api.delete(`/ai/reports/${id}`),
@@ -344,14 +369,82 @@ export const preferencesApi = {
 
 // Philosophy API
 export const philosophyApi = {
+  // Documents
   getDocuments: () => api.get('/philosophy/documents'),
-  createDocument: (data: any) => api.post('/philosophy/documents', data),
+  createDocument: (data: {
+    type: string;
+    category?: string | null;
+    title: string;
+    content: string;
+    priority_weight?: number;
+  }) => api.post('/philosophy/documents', data),
+  updateDocument: (
+    id: string,
+    data: {
+      type?: string;
+      category?: string | null;
+      title?: string;
+      content?: string;
+      priority_weight?: number;
+      is_active?: boolean;
+    }
+  ) => api.put(`/philosophy/documents/${id}`, data),
+  deleteDocument: (id: string) => api.delete(`/philosophy/documents/${id}`),
+
+  // Non-negotiables
   getNonNegotiables: () => api.get('/philosophy/non-negotiables'),
+  getNonNegotiable: (id: string) => api.get(`/philosophy/non-negotiables/${id}`),
+  createNonNegotiable: (data: {
+    rule_number: number;
+    title: string;
+    description: string;
+    enforcement_type: 'hard_constraint' | 'priority_rule' | 'operational_expectation';
+    auto_reject?: boolean;
+    validation_keywords?: string[];
+    is_active?: boolean;
+  }) => api.post('/philosophy/non-negotiables', data),
+  updateNonNegotiable: (
+    id: string,
+    data: {
+      rule_number?: number;
+      title?: string;
+      description?: string;
+      enforcement_type?: 'hard_constraint' | 'priority_rule' | 'operational_expectation';
+      auto_reject?: boolean;
+      validation_keywords?: string[];
+      is_active?: boolean;
+    }
+  ) => api.put(`/philosophy/non-negotiables/${id}`, data),
+  deleteNonNegotiable: (id: string) => api.delete(`/philosophy/non-negotiables/${id}`),
+
+  // Decision hierarchy
   getDecisionHierarchy: () => api.get('/philosophy/decision-hierarchy'),
+  getDecisionHierarchyLevel: (id: string) =>
+    api.get(`/philosophy/decision-hierarchy/${id}`),
+  createDecisionHierarchyLevel: (data: {
+    level: number;
+    stakeholder: string;
+    description?: string | null;
+    weight: number;
+  }) => api.post('/philosophy/decision-hierarchy', data),
+  updateDecisionHierarchyLevel: (
+    id: string,
+    data: {
+      level?: number;
+      stakeholder?: string;
+      description?: string | null;
+      weight?: number;
+    }
+  ) => api.put(`/philosophy/decision-hierarchy/${id}`, data),
+  deleteDecisionHierarchyLevel: (id: string) =>
+    api.delete(`/philosophy/decision-hierarchy/${id}`),
+
+  // Validations
   validate: (data: { recommendationText: string; chatHistoryId?: string }) =>
     api.post('/philosophy/validate', data),
   getRecentValidations: (limit?: number) =>
     api.get('/philosophy/validations/recent', { params: { limit } }),
+  getValidationDetail: (id: string) => api.get(`/philosophy/validations/${id}`),
 };
 
 // Fiscal Year Planning API
