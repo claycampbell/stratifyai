@@ -344,22 +344,55 @@ export default function StaffPlanDetail() {
                       <span className="text-xs font-medium text-gray-600">Strategic Links:</span>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {getLinksForItem(item.id).map((link: any) => (
-                        <div
-                          key={link.id}
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border ${getLinkColor(link.link_type)}`}
-                        >
-                          {getLinkIcon(link.link_type)}
-                          <span className="capitalize">{link.link_type}</span>
-                          <button
-                            onClick={() => handleRemoveLink(link.id)}
-                            className="ml-1 hover:text-red-600"
-                            title="Remove link"
+                      {getLinksForItem(item.id).map((link: any) => {
+                        // Per backlog T-2: show linked entity name + health indicator,
+                        // not just the generic link type. Backend returns linked_entity
+                        // with name/title and (for KPIs) status.
+                        const entity = link.linked_entity;
+                        const label = entity
+                          ? entity.name || entity.title || link.link_type
+                          : link.link_type;
+                        const healthColor =
+                          link.link_type === 'kpi' && entity?.status
+                            ? entity.status === 'on_track'
+                              ? 'bg-green-500'
+                              : entity.status === 'at_risk'
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                            : null;
+                        return (
+                          <div
+                            key={link.id}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border ${getLinkColor(link.link_type)}`}
+                            title={
+                              link.link_type === 'kpi' && entity
+                                ? `${entity.name}: ${entity.current_value ?? '—'}/${entity.target_value ?? '—'} ${entity.unit ?? ''} (${entity.status?.replace('_', ' ') ?? 'no status'})`
+                                : label
+                            }
                           >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
+                            {getLinkIcon(link.link_type)}
+                            {healthColor && (
+                              <span
+                                className={`inline-block w-2 h-2 rounded-full ${healthColor}`}
+                                aria-label={`Health: ${entity?.status}`}
+                              />
+                            )}
+                            <span className="font-medium max-w-[180px] truncate">{label}</span>
+                            {link.link_type === 'kpi' && entity?.target_value != null && (
+                              <span className="text-gray-500">
+                                {entity.current_value ?? '—'}/{entity.target_value}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleRemoveLink(link.id)}
+                              className="ml-1 hover:text-red-600"
+                              title="Remove link"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

@@ -1,11 +1,34 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { aiApi } from '@/lib/api';
-import { Plus, FileText, Trash2, Download } from 'lucide-react';
+import { aiApi, kpisApi } from '@/lib/api';
+import { Plus, FileText, Trash2, Download, RefreshCw, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 
-const reportTypes = [
+// ---------------------------------------------------------------------------
+// Types matching the backend `reportTemplateDefinitions` (kept inline rather
+// than imported from a shared module — backend and frontend types are
+// duplicated by convention in this repo).
+// ---------------------------------------------------------------------------
+interface TemplateParameter {
+  name: string;
+  type: 'user' | 'date' | 'string' | 'number';
+  label: string;
+  required: boolean;
+  description?: string;
+  default?: string | number;
+}
+
+interface ReportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  report_type: string;
+  parameters: TemplateParameter[];
+  data_sources: string[];
+}
+
+const legacyReportTypes = [
   { value: '30_day', label: '30 Day Report' },
   { value: '60_day', label: '60 Day Report' },
   { value: '90_day', label: '90 Day Report' },
@@ -13,10 +36,167 @@ const reportTypes = [
   { value: 'custom', label: 'Custom Report' },
 ];
 
+// ---------------------------------------------------------------------------
+// User picker source (R-2 v1):
+// There is no formal `usersApi` in this codebase. For the "user" parameter
+// type we collect distinct ownership strings + persons_responsible entries
+// from existing KPIs. This is the same identifier shape the backend uses to
+// match KPIs in `reportTemplates.ts`.
+// ---------------------------------------------------------------------------
+function useUserOptions() {
+  const { data: kpis } = useQuery({
+    queryKey: ['kpis-for-user-picker'],
+    queryFn: () => kpisApi.getAll().then((r) => r.data),
+  });
+
+  return useMemo(() => {
+    const set = new Set<string>();
+    (kpis || []).forEach((k: any) => {
+      if (k.ownership && typeof k.ownership === 'string') {
+        const trimmed = k.ownership.trim();
+        if (trimmed) set.add(trimmed);
+      }
+      if (Array.isArray(k.persons_responsible)) {
+        k.persons_responsible.forEach((p: string) => {
+          if (p && p.trim()) set.add(p.trim());
+        });
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [kpis]);
+}
+
+// ---------------------------------------------------------------------------
+// Parameter form for a chosen template.
+// ---------------------------------------------------------------------------
+function TemplateParamForm({
+  template,
+  initialValues,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  submitLabel,
+}: {
+  template: ReportTemplate;
+  initialValues?: Record<string, any>;
+  onSubmit: (params: Record<string, any>) => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+  submitLabel: string;
+}) {
+  const userOptions = useUserOptions();
+
+  const [values, setValues] = useState<Record<string, any>>(() => {
+    const seed: Record<string, any> = {};
+    template.parameters.forEach((p) => {
+      if (initialValues && initialValues[p.name] !== undefined) {
+        seed[p.name] = initialValues[p.name];
+      } else if (p.default !== undefined) {
+        seed[p.name] = p.default;
+      } else {
+        seed[p.name] = '';
+      }
+    });
+    return seed;
+  });
+
+  const set = (name: string, value: any) => setValues((v) => ({ ...v, [name]: value }));
+
+  const canSubmit = template.parameters.every(
+    (p) => !p.required || (values[p.name] !== '' && values[p.name] !== undefined && values[p.name] !== null)
+  );
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
+        <p className="text-sm text-gray-600 mt-1">{template.description}</p>
+        {template.data_sources?.length > 0 && (
+          <details className="mt-2">
+            <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+              Data sources used
+            </summary>
+            <ul className="mt-2 list-disc pl-5 text-xs text-gray-600 space-y-1">
+              {template.data_sources.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
+
+      {template.parameters.map((p) => (
+        <div key={p.name}>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {p.label}
+            {p.required && <span className="text-red-500 ml-1">*</span>}
+          </label>
+          {p.type === 'user' ? (
+            <input
+              list={`user-options-${p.name}`}
+              value={values[p.name] || ''}
+              onChange={(e) => set(p.name, e.target.value)}
+              className="input"
+              placeholder="Type a name or pick one"
+            />
+          ) : p.type === 'date' ? (
+            <input
+              type="text"
+              value={values[p.name] || ''}
+              onChange={(e) => set(p.name, e.target.value)}
+              className="input"
+              placeholder="YYYY-MM (e.g. 2026-04)"
+            />
+          ) : p.type === 'number' ? (
+            <input
+              type="number"
+              value={values[p.name] ?? ''}
+              onChange={(e) => set(p.name, e.target.value === '' ? '' : Number(e.target.value))}
+              className="input"
+            />
+          ) : (
+            <input
+              type="text"
+              value={values[p.name] || ''}
+              onChange={(e) => set(p.name, e.target.value)}
+              className="input"
+            />
+          )}
+          {p.type === 'user' && (
+            <datalist id={`user-options-${p.name}`}>
+              {userOptions.map((opt) => (
+                <option key={opt} value={opt} />
+              ))}
+            </datalist>
+          )}
+          {p.description && <p className="text-xs text-gray-500 mt-1">{p.description}</p>}
+        </div>
+      ))}
+
+      <div className="flex space-x-3">
+        <button
+          onClick={() => onSubmit(values)}
+          disabled={!canSubmit || isSubmitting}
+          className="btn btn-primary"
+        >
+          {isSubmitting ? 'Generating…' : submitLabel}
+        </button>
+        <button onClick={onCancel} className="btn btn-secondary" disabled={isSubmitting}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Reports() {
-  const [isGenerating, setIsGenerating] = useState(false);
+  // UI state machine for the generation panel
+  type Mode = 'idle' | 'gallery' | 'params' | 'advanced';
+  const [mode, setMode] = useState<Mode>('idle');
+  const [activeTemplate, setActiveTemplate] = useState<ReportTemplate | null>(null);
+
   const [selectedReport, setSelectedReport] = useState<any>(null);
-  const [newReport, setNewReport] = useState({
+  const [advancedReport, setAdvancedReport] = useState({
     report_type: '30_day',
     title: '',
     timeframe: '',
@@ -29,12 +209,37 @@ export default function Reports() {
     queryFn: () => aiApi.getReports().then((res) => res.data),
   });
 
-  const generateMutation = useMutation({
+  const { data: templates } = useQuery<ReportTemplate[]>({
+    queryKey: ['report-templates'],
+    queryFn: () => aiApi.getReportTemplates().then((res) => res.data),
+  });
+
+  const fromTemplateMutation = useMutation({
+    mutationFn: ({ templateId, params }: { templateId: string; params: Record<string, any> }) =>
+      aiApi.generateFromTemplate(templateId, params),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      setSelectedReport(res.data);
+      setMode('idle');
+      setActiveTemplate(null);
+    },
+  });
+
+  const advancedMutation = useMutation({
     mutationFn: (data: any) => aiApi.generateReport(data.report_type, data.title, data.timeframe),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
-      setIsGenerating(false);
-      setNewReport({ report_type: '30_day', title: '', timeframe: '' });
+      setMode('idle');
+      setAdvancedReport({ report_type: '30_day', title: '', timeframe: '' });
+    },
+  });
+
+  const refreshMutation = useMutation({
+    mutationFn: ({ templateId, params }: { templateId: string; params: Record<string, any> }) =>
+      aiApi.generateFromTemplate(templateId, params),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      setSelectedReport(res.data);
     },
   });
 
@@ -46,9 +251,9 @@ export default function Reports() {
     },
   });
 
-  const handleGenerate = () => {
-    if (newReport.title) {
-      generateMutation.mutate(newReport);
+  const handleAdvancedGenerate = () => {
+    if (advancedReport.title) {
+      advancedMutation.mutate(advancedReport);
     }
   };
 
@@ -61,6 +266,21 @@ export default function Reports() {
     a.click(); URL.revokeObjectURL(url);
   };
 
+  // R-3 stub: Refresh re-runs the same template + params if metadata is present.
+  // Full scheduling (cron) is out of scope for this PR.
+  const canRefresh = Boolean(
+    selectedReport?.metadata?.template_id && selectedReport?.metadata?.params
+  );
+  const handleRefresh = () => {
+    if (!canRefresh) return;
+    refreshMutation.mutate({
+      templateId: selectedReport.metadata.template_id,
+      params: selectedReport.metadata.params,
+    });
+  };
+
+  const individualTemplate = templates?.find((t) => t.id === 'individual_report');
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -70,30 +290,110 @@ export default function Reports() {
             Generate and manage AI-powered strategic reports
           </p>
         </div>
-        <button
-          onClick={() => setIsGenerating(true)}
-          className="btn btn-primary flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Generate Report
-        </button>
+        <div className="flex gap-2">
+          {individualTemplate && (
+            <button
+              onClick={() => {
+                setActiveTemplate(individualTemplate);
+                setMode('params');
+              }}
+              className="btn btn-secondary flex items-center"
+              title="Generate an individual 1:1 prep report"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Individual report
+            </button>
+          )}
+          <button
+            onClick={() => setMode('gallery')}
+            className="btn btn-primary flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New report
+          </button>
+        </div>
       </div>
 
-      {/* Generate Form */}
-      {isGenerating && (
+      {/* Template gallery */}
+      {mode === 'gallery' && (
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">Pick a report template</h3>
+            <button onClick={() => setMode('idle')} className="text-sm text-gray-500 hover:text-gray-700">
+              Cancel
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(templates || []).map((t) => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setActiveTemplate(t);
+                  setMode('params');
+                }}
+                className="text-left p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors"
+              >
+                <h4 className="font-semibold text-gray-900">{t.name}</h4>
+                <p className="text-sm text-gray-600 mt-1">{t.description}</p>
+              </button>
+            ))}
+            <button
+              onClick={() => setMode('advanced')}
+              className="text-left p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+            >
+              <h4 className="font-semibold text-gray-900">Custom (advanced)</h4>
+              <p className="text-sm text-gray-600 mt-1">
+                Free-text title + report type. No data scoping — output may include
+                unrelated entities.
+              </p>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Parameter form for an active template */}
+      {mode === 'params' && activeTemplate && (
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate New Report</h3>
+          <TemplateParamForm
+            template={activeTemplate}
+            isSubmitting={fromTemplateMutation.isPending}
+            submitLabel="Generate"
+            onCancel={() => {
+              setMode('idle');
+              setActiveTemplate(null);
+            }}
+            onSubmit={(params) =>
+              fromTemplateMutation.mutate({ templateId: activeTemplate.id, params })
+            }
+          />
+          {fromTemplateMutation.isError && (
+            <p className="text-sm text-red-600 mt-3">
+              {(fromTemplateMutation.error as any)?.response?.data?.error ||
+                'Failed to generate report.'}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Advanced (free-text) form */}
+      {mode === 'advanced' && (
+        <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Custom (advanced) report</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Free-text generation. Output may include entities outside the intended subject.
+            Prefer a template if one fits your need.
+          </p>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Report Type
               </label>
               <select
-                value={newReport.report_type}
-                onChange={(e) => setNewReport({ ...newReport, report_type: e.target.value })}
+                value={advancedReport.report_type}
+                onChange={(e) => setAdvancedReport({ ...advancedReport, report_type: e.target.value })}
                 className="input"
               >
-                {reportTypes.map((type) => (
+                {legacyReportTypes.map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
@@ -104,8 +404,8 @@ export default function Reports() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
               <input
                 type="text"
-                value={newReport.title}
-                onChange={(e) => setNewReport({ ...newReport, title: e.target.value })}
+                value={advancedReport.title}
+                onChange={(e) => setAdvancedReport({ ...advancedReport, title: e.target.value })}
                 className="input"
                 placeholder="e.g., Q1 2025 Strategic Progress"
               />
@@ -116,21 +416,21 @@ export default function Reports() {
               </label>
               <input
                 type="text"
-                value={newReport.timeframe}
-                onChange={(e) => setNewReport({ ...newReport, timeframe: e.target.value })}
+                value={advancedReport.timeframe}
+                onChange={(e) => setAdvancedReport({ ...advancedReport, timeframe: e.target.value })}
                 className="input"
                 placeholder="e.g., January 2025 - March 2025"
               />
             </div>
             <div className="flex space-x-3">
               <button
-                onClick={handleGenerate}
-                disabled={generateMutation.isPending}
+                onClick={handleAdvancedGenerate}
+                disabled={advancedMutation.isPending}
                 className="btn btn-primary"
               >
-                {generateMutation.isPending ? 'Generating...' : 'Generate'}
+                {advancedMutation.isPending ? 'Generating...' : 'Generate'}
               </button>
-              <button onClick={() => setIsGenerating(false)} className="btn btn-secondary">
+              <button onClick={() => setMode('idle')} className="btn btn-secondary">
                 Cancel
               </button>
             </div>
@@ -165,6 +465,11 @@ export default function Reports() {
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {format(new Date(report.created_at), 'MMM dd, yyyy')}
+                          {report.metadata?.template_id && (
+                            <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-medium uppercase tracking-wide">
+                              template
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -185,10 +490,25 @@ export default function Reports() {
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">{selectedReport.title}</h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    {selectedReport.report_type?.replace('_', ' day')} — Generated on {format(new Date(selectedReport.created_at), 'MMMM dd, yyyy')}
+                    {selectedReport.report_type?.replace('_', ' ')} — Generated on {format(new Date(selectedReport.created_at), 'MMMM dd, yyyy')}
                   </p>
+                  {selectedReport.metadata?.template_id && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Template: <code className="bg-gray-100 px-1 rounded">{selectedReport.metadata.template_id}</code>
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
+                  {canRefresh && (
+                    <button
+                      onClick={handleRefresh}
+                      disabled={refreshMutation.isPending}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                      title="Refresh — re-run the same template with the same parameters"
+                    >
+                      <RefreshCw className={`h-5 w-5 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
+                    </button>
+                  )}
                   <button onClick={handleExport} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="Export as HTML">
                     <Download className="h-5 w-5" />
                   </button>

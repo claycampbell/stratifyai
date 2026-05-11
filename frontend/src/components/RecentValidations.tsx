@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { philosophyApi } from '@/lib/api';
 import { CheckCircle, AlertTriangle, XCircle, Clock, Shield, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import ValidationDetailModal from './ValidationDetailModal';
 
 /**
  * RecentValidations
@@ -13,6 +15,8 @@ import { format } from 'date-fns';
  * Part of P0-006 Phase 2: RMU Athletics Philosophy Integration - Dashboard Widgets
  */
 export default function RecentValidations() {
+  const [selectedValidationId, setSelectedValidationId] = useState<string | null>(null);
+
   const { data: validations, isLoading, error } = useQuery({
     queryKey: ['recent-validations'],
     queryFn: () => philosophyApi.getRecentValidations(5).then((res) => res.data),
@@ -95,9 +99,12 @@ export default function RecentValidations() {
       {validations && validations.length > 0 ? (
         <div className="space-y-3">
           {validations.map((validation: any) => (
-            <div
+            <button
               key={validation.id}
-              className={`p-3 rounded-lg border ${getStatusColor(validation.validation_status)}`}
+              type="button"
+              onClick={() => setSelectedValidationId(validation.id)}
+              className={`w-full text-left p-3 rounded-lg border transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(validation.validation_status)}`}
+              aria-label={`View validation detail for ${validation.validation_status} recommendation`}
             >
               {/* Status and Time */}
               <div className="flex items-center justify-between mb-2">
@@ -153,7 +160,7 @@ export default function RecentValidations() {
                   </p>
                 </div>
               )}
-            </div>
+            </button>
           ))}
         </div>
       ) : (
@@ -164,6 +171,13 @@ export default function RecentValidations() {
             AI recommendations will appear here after validation
           </p>
         </div>
+      )}
+
+      {selectedValidationId && (
+        <ValidationDetailModal
+          validationId={selectedValidationId}
+          onClose={() => setSelectedValidationId(null)}
+        />
       )}
     </div>
   );

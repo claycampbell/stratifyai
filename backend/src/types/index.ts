@@ -451,7 +451,27 @@ export interface AIRecommendationValidation {
   decision_hierarchy_alignment?: Record<string, number>;
   conflict_resolution?: string;
   transparency_score?: number;
+  source_entity_type?: 'kpi_update' | 'ogsm_edit' | 'plan_item_change' | string;
+  source_entity_id?: string;
   created_at: Date;
+}
+
+// V-1/V-2: snapshot of the entity that triggered a validated recommendation.
+// Returned by GET /api/philosophy/validations/:id. Shape varies by entity type.
+export interface ValidationSourceEntitySnapshot {
+  type: 'kpi' | 'ogsm_component' | 'plan_item';
+  id: string;
+  // KPI fields
+  name?: string;
+  current_value?: number | null;
+  target_value?: number | null;
+  unit?: string | null;
+  // OGSM fields
+  title?: string;
+  component_type?: string;
+  // Plan item fields
+  timeframe?: string;
+  status?: string;
 }
 
 export interface RecommendationWithAlignment {

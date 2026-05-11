@@ -254,6 +254,16 @@ export default function OGSMTreeView({
             </div>
           )}
 
+          {/* Rank indicator (stack-rank within siblings, 1-based) */}
+          {onReorder && (
+            <span
+              className="flex-shrink-0 mr-2 inline-flex items-center justify-center w-6 h-6 text-xs font-semibold text-gray-500 bg-gray-100 rounded"
+              title="Stack rank within siblings — drag to reorder"
+            >
+              #{(node.order_index ?? 0) + 1}
+            </span>
+          )}
+
           {/* Type Badge */}
           <span
             className={`flex-shrink-0 px-2 py-1 text-xs font-medium rounded border capitalize ${getTypeColor(

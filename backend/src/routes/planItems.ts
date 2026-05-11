@@ -233,16 +233,46 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Get all links for a plan item
+// Per backlog T-2: enrich KPI links with name + current/target/status, OGSM links with title+type
 router.get('/:id/links', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
+    const linksResult = await pool.query(
       'SELECT * FROM plan_item_links WHERE plan_item_id = $1 ORDER BY created_at ASC',
       [id]
     );
 
-    res.json(result.rows);
+    // Enrich each link with the underlying entity's display fields so the UI can render
+    // the linked KPI's name and health without N+1 round-trips per row.
+    const enriched = await Promise.all(
+      linksResult.rows.map(async (link: any) => {
+        if (link.link_type === 'kpi') {
+          const r = await pool.query(
+            'SELECT id, name, current_value, target_value, unit, status FROM kpis WHERE id = $1',
+            [link.link_id]
+          );
+          return { ...link, linked_entity: r.rows[0] || null };
+        }
+        if (link.link_type === 'ogsm_component' || link.link_type === 'strategy') {
+          const r = await pool.query(
+            'SELECT id, title, component_type FROM ogsm_components WHERE id = $1',
+            [link.link_id]
+          );
+          return { ...link, linked_entity: r.rows[0] || null };
+        }
+        if (link.link_type === 'initiative') {
+          const r = await pool.query(
+            'SELECT id, title, status, completion_percentage FROM initiatives WHERE id = $1',
+            [link.link_id]
+          );
+          return { ...link, linked_entity: r.rows[0] || null };
+        }
+        return { ...link, linked_entity: null };
+      })
+    );
+
+    res.json(enriched);
   } catch (error) {
     console.error('Error fetching plan item links:', error);
     res.status(500).json({ error: 'Failed to fetch plan item links' });

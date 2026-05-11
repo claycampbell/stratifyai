@@ -73,7 +73,32 @@ export default function OGSMView() {
   const reorderMutation = useMutation({
     mutationFn: (updates: Array<{ id: string; order_index?: number; parent_id?: string | null }>) =>
       ogsmApi.bulkReorder(updates),
-    onSuccess: () => {
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries({ queryKey: ['ogsm'] });
+      const previous = queryClient.getQueryData(['ogsm']);
+      queryClient.setQueryData(['ogsm'], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        const map = new Map(updates.map((u) => [u.id, u]));
+        return old.map((c: any) => {
+          const u = map.get(c.id);
+          if (!u) return c;
+          return {
+            ...c,
+            ...(u.order_index !== undefined ? { order_index: u.order_index } : {}),
+            ...(u.parent_id !== undefined ? { parent_id: u.parent_id } : {}),
+          };
+        });
+      });
+      return { previous };
+    },
+    onError: (err, _updates, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['ogsm'], context.previous);
+      }
+      console.error('Reorder failed, reverting:', err);
+      alert('Failed to save new order. The view has been restored to the last saved state.');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['ogsm'] });
     },
   });

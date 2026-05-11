@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { aiStrategyApi, fiscalPlanningApi } from '@/lib/api';
-import { Sparkles, TrendingUp, AlertTriangle, Target, Clock, DollarSign, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Plus, CalendarCheck, BarChart3, ExternalLink } from 'lucide-react';
+import { Sparkles, TrendingUp, AlertTriangle, Target, Clock, DollarSign, CheckCircle, ChevronDown, ChevronUp, Lightbulb, Plus, CalendarCheck, BarChart3, ExternalLink, ThumbsUp, ThumbsDown } from 'lucide-react';
 import type { StrategyGenerationContext, GeneratedStrategy, StrategyGenerationResponse, FiscalPlanSummary } from '@/types';
 import CreateKPIsModal from './CreateKPIsModal';
 
@@ -28,6 +28,10 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
   const [addedStrategyIds, setAddedStrategyIds] = useState<Map<number, string>>(new Map());
   const [strategyKPICounts, setStrategyKPICounts] = useState<Map<string, number>>(new Map());
   const [createKPIsModalStrategy, setCreateKPIsModalStrategy] = useState<{ index: number; strategyId: string; strategy: GeneratedStrategy } | null>(null);
+  // Per backlog S-1: per-strategy feedback so we can tune the prompt later.
+  // Stores rating + comment per strategy index. Submitted to ai_strategy_feedback via aiStrategyApi.submitFeedback.
+  const [feedbackByStrategy, setFeedbackByStrategy] = useState<Map<number, { rating: 'up' | 'down'; comment: string; submitted: boolean }>>(new Map());
+  const [feedbackCommentDraft, setFeedbackCommentDraft] = useState<Map<number, string>>(new Map());
 
   // Check for active fiscal plan on component mount
   useEffect(() => {
@@ -136,6 +140,35 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
 
   const handleOpenCreateKPIsModal = (index: number, strategyId: string, strategy: GeneratedStrategy) => {
     setCreateKPIsModalStrategy({ index, strategyId, strategy });
+  };
+
+  const handleStrategyFeedback = async (index: number, rating: 'up' | 'down') => {
+    const comment = feedbackCommentDraft.get(index) || '';
+    const strategy = generatedStrategies[index];
+    const generatedStrategyId = addedStrategyIds.get(index);
+
+    // Optimistic UI update
+    setFeedbackByStrategy(prev => new Map(prev).set(index, { rating, comment, submitted: false }));
+
+    try {
+      await aiStrategyApi.submitFeedback({
+        // ai_strategy_feedback row: rating 1-5, feedback_type, comments
+        // Map thumbs-up/down to a numeric rating that fits the existing schema (rating: 1-5)
+        rating: rating === 'up' ? 5 : 1,
+        feedback_type: 'quality',
+        comments: comment,
+        // Include context so we can tie feedback back to the prompt + suggestion
+        generated_strategy_id: generatedStrategyId || null,
+        strategy_title: strategy?.title,
+        prompt_objective: formData.objective,
+      });
+      setFeedbackByStrategy(prev => new Map(prev).set(index, { rating, comment, submitted: true }));
+    } catch (err: any) {
+      console.error('Feedback submit failed:', err);
+      // Roll back the optimistic flag — keep selection but mark not-submitted
+      setFeedbackByStrategy(prev => new Map(prev).set(index, { rating, comment, submitted: false }));
+      alert(`Feedback could not be saved: ${err.response?.data?.error || err.message}`);
+    }
   };
 
   const handleKPIsCreated = async (kpisCount: number) => {
@@ -527,6 +560,53 @@ export default function AIStrategyGenerator({ onStrategyGenerated }: AIStrategyG
                     </>
                   )}
                 </button>
+
+                {/* Feedback row (S-1): collect rating + optional comment so we can tune the prompt later. */}
+                <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Was this suggestion useful?</span>
+                    {feedbackByStrategy.get(index)?.submitted && (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" /> Thanks for the feedback
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleStrategyFeedback(index, 'up')}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                        feedbackByStrategy.get(index)?.rating === 'up'
+                          ? 'bg-green-50 border-green-300 text-green-700'
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                      aria-label="Useful"
+                    >
+                      <ThumbsUp className="h-4 w-4" />
+                      <span>Useful</span>
+                    </button>
+                    <button
+                      onClick={() => handleStrategyFeedback(index, 'down')}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                        feedbackByStrategy.get(index)?.rating === 'down'
+                          ? 'bg-red-50 border-red-300 text-red-700'
+                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                      aria-label="Not useful"
+                    >
+                      <ThumbsDown className="h-4 w-4" />
+                      <span>Not useful</span>
+                    </button>
+                    <input
+                      type="text"
+                      value={feedbackCommentDraft.get(index) || ''}
+                      onChange={(e) =>
+                        setFeedbackCommentDraft((prev) => new Map(prev).set(index, e.target.value))
+                      }
+                      placeholder="Optional: what worked or didn't?"
+                      className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Expanded Details */}

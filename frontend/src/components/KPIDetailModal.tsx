@@ -400,28 +400,51 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
               {/* Category & Metadata */}
               {isEditing && (
                 <div className="card">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Category</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      KPI Category
-                    </label>
-                    <select
-                      value={editedKPI.category_id || ''}
-                      onChange={(e) =>
-                        setEditedKPI({ ...editedKPI, category_id: e.target.value || null })
-                      }
-                      className="w-full input"
-                    >
-                      <option value="">Uncategorized</option>
-                      {categories?.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Assign this KPI to a category for better organization
-                    </p>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Category & Cadence</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        KPI Category
+                      </label>
+                      <select
+                        value={editedKPI.category_id || ''}
+                        onChange={(e) =>
+                          setEditedKPI({ ...editedKPI, category_id: e.target.value || null })
+                        }
+                        className="w-full input"
+                      >
+                        <option value="">Uncategorized</option>
+                        {categories?.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Assign this KPI to a category for better organization
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Frequency
+                      </label>
+                      <select
+                        value={editedKPI.frequency || 'monthly'}
+                        onChange={(e) =>
+                          setEditedKPI({ ...editedKPI, frequency: e.target.value })
+                        }
+                        className="w-full input"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="annual">Annual</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        How often this KPI is expected to be updated. Existing history is preserved.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -490,9 +513,16 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
               </div>
 
               {/* Trend Chart */}
-              {historyChartData.length > 0 && (
+              {historyChartData.length > 0 ? (
                 <div className="card">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Trend</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Recent Trend</h3>
+                    {historyChartData.length === 1 && (
+                      <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded-full">
+                        First entry — add more values to see a trend line
+                      </span>
+                    )}
+                  </div>
                   <ResponsiveContainer width="100%" height={250}>
                     <LineChart data={historyChartData}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -505,18 +535,42 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                         dataKey="value"
                         stroke="#3b82f6"
                         strokeWidth={2}
-                        dot={{ r: 4 }}
+                        dot={{ r: historyChartData.length === 1 ? 8 : 4 }}
+                        activeDot={{ r: historyChartData.length === 1 ? 10 : 6 }}
                         name="Actual"
+                        isAnimationActive={false}
                       />
                       <Line
                         type="monotone"
                         dataKey="target"
                         stroke="#10b981"
                         strokeDasharray="5 5"
+                        dot={false}
                         name="Target"
+                        isAnimationActive={false}
                       />
                     </LineChart>
                   </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="card">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Recent Trend</h3>
+                  <div className="text-center py-6">
+                    <Activity className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-700 mb-3">
+                      Add your first value in the History tab to start tracking trends.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setActiveTab('history');
+                        setShowAddHistory(true);
+                      }}
+                      className="btn btn-primary inline-flex items-center"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add First Entry
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -553,19 +607,24 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
           {activeTab === 'history' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Value History</h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Value History</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Log new values, or backdate to record historical entries.
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowAddHistory(!showAddHistory)}
-                  className="btn btn-primary flex items-center"
+                  className="btn btn-primary flex items-center shadow-md hover:shadow-lg text-base px-5 py-2.5"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="h-5 w-5 mr-2" />
                   Add Entry
                 </button>
               </div>
 
               {/* Add History Form */}
               {showAddHistory && (
-                <div className="card bg-blue-50">
+                <div className="card bg-blue-50 border-2 border-blue-200">
                   <h4 className="font-semibold text-gray-900 mb-3">Add New Entry</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
@@ -583,7 +642,23 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium text-gray-700">Date</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = new Date();
+                            d.setMonth(d.getMonth() - 1);
+                            setNewHistoryEntry({
+                              ...newHistoryEntry,
+                              recorded_date: d.toISOString().split('T')[0],
+                            });
+                          }}
+                          className="text-xs text-blue-700 hover:text-blue-900 underline"
+                        >
+                          Backdate 1 month
+                        </button>
+                      </div>
                       <input
                         type="date"
                         value={newHistoryEntry.recorded_date}
@@ -592,6 +667,9 @@ export default function KPIDetailModal({ kpiId, onClose }: KPIDetailModalProps) 
                         }
                         className="input"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Defaults to today. Change the date to backdate a historical value.
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">

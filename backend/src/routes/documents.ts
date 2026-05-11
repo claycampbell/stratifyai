@@ -35,6 +35,21 @@ const upload = multer({
   },
 });
 
+// Parse a form-data boolean value. Defaults to `defaultValue` if undefined/empty.
+function parseFormBool(value: any, defaultValue: boolean): boolean {
+  if (value === undefined || value === null || value === '') return defaultValue;
+  if (typeof value === 'boolean') return value;
+  const v = String(value).toLowerCase().trim();
+  return v === 'true' || v === '1' || v === 'yes' || v === 'on';
+}
+
+export interface UploadIntents {
+  extract_ogsm: boolean;
+  extract_kpis: boolean;
+  feed_strategic_planning: boolean;
+  store_only: boolean;
+}
+
 // Upload document
 router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -44,17 +59,36 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
     const { filename, originalname, mimetype, size, path: filePath } = req.file;
 
+    // Parse user-supplied intent flags. Defaults preserve prior behavior
+    // (extract OGSM + KPIs) when no flags are supplied.
+    const storeOnly = parseFormBool(req.body?.store_only, false);
+    const intents: UploadIntents = {
+      extract_ogsm: storeOnly ? false : parseFormBool(req.body?.extract_ogsm, true),
+      extract_kpis: storeOnly ? false : parseFormBool(req.body?.extract_kpis, true),
+      feed_strategic_planning: storeOnly
+        ? false
+        : parseFormBool(req.body?.feed_strategic_planning, false),
+      store_only: storeOnly,
+    };
+
+    // Persist intents on the document row up front so the audit trail exists
+    // even if processing fails later.
+    const initialMetadata = {
+      intents,
+      uploaded_at: new Date().toISOString(),
+    };
+
     // Save document metadata to database
     const result = await pool.query(
-      `INSERT INTO documents (filename, original_name, file_type, file_size, processed)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [filename, originalname, mimetype, size, false]
+      `INSERT INTO documents (filename, original_name, file_type, file_size, processed, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [filename, originalname, mimetype, size, false, JSON.stringify(initialMetadata)]
     );
 
     const document = result.rows[0];
 
-    // Process file asynchronously
-    processDocumentAsync(document.id, filePath, mimetype);
+    // Process file asynchronously, honoring the user's chosen intents.
+    processDocumentAsync(document.id, filePath, mimetype, intents);
 
     res.status(201).json({
       message: 'File uploaded successfully',
@@ -113,11 +147,21 @@ function parseKPIsFromSheet(headers: any[], rows: any[][]): any[] {
 }
 
 // Process document and extract OGSM components
-async function processDocumentAsync(documentId: string, filePath: string, fileType: string) {
-  console.log(`[Document ${documentId}] Starting processing...`);
+async function processDocumentAsync(
+  documentId: string,
+  filePath: string,
+  fileType: string,
+  intents: UploadIntents = {
+    extract_ogsm: true,
+    extract_kpis: true,
+    feed_strategic_planning: false,
+    store_only: false,
+  }
+) {
+  console.log(`[Document ${documentId}] Starting processing with intents:`, intents);
 
   try {
-    // Process the file
+    // Process the file (always extract text so we have a record of contents)
     const processed = await FileProcessor.processFile(filePath, fileType);
     console.log(`[Document ${documentId}] File processed, extracted ${processed.text.length} characters`);
 
@@ -128,55 +172,82 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
     let ogsmComponents: any[] = [];
     let kpis: any[] = [];
 
-    // For XLSX/XLS files: try to detect and parse KPI spreadsheets directly
-    const ext = path.extname(filePath).toLowerCase();
-    if ((ext === '.xlsx' || ext === '.xls') && processed.tables && processed.tables.length > 0) {
-      console.log(`[Document ${documentId}] Detected spreadsheet with ${processed.tables.length} sheets`);
+    // If user opted to store only, skip all extraction.
+    if (intents.store_only) {
+      console.log(`[Document ${documentId}] store_only=true, skipping all extraction`);
+    } else {
+      // For XLSX/XLS files: try to detect and parse KPI spreadsheets directly
+      const ext = path.extname(filePath).toLowerCase();
+      if ((ext === '.xlsx' || ext === '.xls') && processed.tables && processed.tables.length > 0) {
+        console.log(`[Document ${documentId}] Detected spreadsheet with ${processed.tables.length} sheets`);
 
-      for (const sheet of processed.tables) {
-        if (!sheet.data || sheet.data.length < 2) continue;
+        if (intents.extract_kpis) {
+          for (const sheet of processed.tables) {
+            if (!sheet.data || sheet.data.length < 2) continue;
 
-        const headers = sheet.data[0];
-        const rows = sheet.data.slice(1);
+            const headers = sheet.data[0];
+            const rows = sheet.data.slice(1);
 
-        if (isKPISpreadsheet(headers)) {
-          console.log(`[Document ${documentId}] Sheet "${sheet.name}" identified as KPI spreadsheet`);
-          const sheetKpis = parseKPIsFromSheet(headers, rows);
-          if (sheetKpis.length > 0) {
-            console.log(`[Document ${documentId}] Parsed ${sheetKpis.length} KPIs from sheet "${sheet.name}"`);
-            kpis.push(...sheetKpis);
+            if (isKPISpreadsheet(headers)) {
+              console.log(`[Document ${documentId}] Sheet "${sheet.name}" identified as KPI spreadsheet`);
+              const sheetKpis = parseKPIsFromSheet(headers, rows);
+              if (sheetKpis.length > 0) {
+                console.log(`[Document ${documentId}] Parsed ${sheetKpis.length} KPIs from sheet "${sheet.name}"`);
+                kpis.push(...sheetKpis);
+              }
+            } else {
+              console.log(`[Document ${documentId}] Sheet "${sheet.name}" not identified as KPI sheet, using AI extraction`);
+            }
+          }
+
+          // If no KPIs were parsed directly, fall back to AI extraction with structured data
+          if (kpis.length === 0) {
+            console.log(`[Document ${documentId}] No direct KPI parse, falling back to AI extraction`);
+            const structuredText = processed.text + '\n\nStructured table data:\n' +
+              JSON.stringify(processed.tables);
+            kpis = await extractWithRetry(
+              () => openaiService.extractKPIsFromText(structuredText),
+              'KPIs',
+              documentId
+            );
           }
         } else {
-          console.log(`[Document ${documentId}] Sheet "${sheet.name}" not identified as KPI sheet, using AI extraction`);
+          console.log(`[Document ${documentId}] extract_kpis=false, skipping spreadsheet KPI parse`);
+        }
+
+        // Spreadsheets can still contain OGSM-shaped narrative — only run if requested.
+        if (intents.extract_ogsm) {
+          console.log(`[Document ${documentId}] Extracting OGSM components from spreadsheet text...`);
+          ogsmComponents = await extractWithRetry(
+            () => openaiService.extractOGSMFromText(processed.text),
+            'OGSM components',
+            documentId
+          );
+        }
+      } else {
+        // Text-based documents: extract OGSM and/or KPIs via AI based on intents
+        if (intents.extract_ogsm) {
+          console.log(`[Document ${documentId}] Extracting OGSM components...`);
+          ogsmComponents = await extractWithRetry(
+            () => openaiService.extractOGSMFromText(processed.text),
+            'OGSM components',
+            documentId
+          );
+        } else {
+          console.log(`[Document ${documentId}] extract_ogsm=false, skipping OGSM extraction`);
+        }
+
+        if (intents.extract_kpis) {
+          console.log(`[Document ${documentId}] Extracting KPIs...`);
+          kpis = await extractWithRetry(
+            () => openaiService.extractKPIsFromText(processed.text),
+            'KPIs',
+            documentId
+          );
+        } else {
+          console.log(`[Document ${documentId}] extract_kpis=false, skipping KPI extraction`);
         }
       }
-
-      // If no KPIs were parsed directly, fall back to AI extraction with structured data
-      if (kpis.length === 0) {
-        console.log(`[Document ${documentId}] No direct KPI parse, falling back to AI extraction`);
-        const structuredText = processed.text + '\n\nStructured table data:\n' +
-          JSON.stringify(processed.tables);
-        kpis = await extractWithRetry(
-          () => openaiService.extractKPIsFromText(structuredText),
-          'KPIs',
-          documentId
-        );
-      }
-    } else {
-      // Text-based documents: extract both OGSM and KPIs via AI
-      console.log(`[Document ${documentId}] Extracting OGSM components...`);
-      ogsmComponents = await extractWithRetry(
-        () => openaiService.extractOGSMFromText(processed.text),
-        'OGSM components',
-        documentId
-      );
-
-      console.log(`[Document ${documentId}] Extracting KPIs...`);
-      kpis = await extractWithRetry(
-        () => openaiService.extractKPIsFromText(processed.text),
-        'KPIs',
-        documentId
-      );
     }
 
     console.log(`[Document ${documentId}] Extraction complete: ${ogsmComponents.length} OGSM components, ${kpis.length} KPIs`);
@@ -236,12 +307,16 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
     const totalExtracted = ogsmComponents.length + kpis.length;
     const metadata: any = {
       ...processed.metadata,
+      intents,
       ogsm_count: ogsmComponents.length,
       kpi_count: kpis.length,
       processed_at: new Date().toISOString(),
     };
 
-    if (totalExtracted === 0) {
+    if (intents.store_only) {
+      metadata.note = 'Stored as reference only — extraction skipped per user intent';
+      metadata.text_length = processed.text.length;
+    } else if (totalExtracted === 0) {
       metadata.warning = 'No strategic content detected';
       metadata.text_length = processed.text.length;
     }
@@ -257,6 +332,7 @@ async function processDocumentAsync(documentId: string, filePath: string, fileTy
     await pool.query(
       `UPDATE documents SET processed = false, metadata = $1 WHERE id = $2`,
       [JSON.stringify({
+        intents,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         failed_at: new Date().toISOString()
