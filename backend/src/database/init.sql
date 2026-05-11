@@ -593,13 +593,9 @@ ALTER TABLE kpis ADD CONSTRAINT fk_kpis_source_strategy
 -- ============================================================
 -- V-1/V-2: Source-entity tracking for AI recommendation validations
 -- ============================================================
--- Adds nullable columns so a validation row can point back to the entity
--- whose change triggered the AI recommendation (KPI update, OGSM edit,
--- plan-item change, etc.). Both columns are nullable because not every
--- validation is anchored to a single domain entity.
-ALTER TABLE ai_recommendation_validations
-  ADD COLUMN IF NOT EXISTS source_entity_type VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS source_entity_id UUID;
-
-CREATE INDEX IF NOT EXISTS idx_validations_source_entity
-  ON ai_recommendation_validations(source_entity_type, source_entity_id);
+-- The ai_recommendation_validations table itself is created by the
+-- 005_philosophy_system.sql migration (it has FKs to chat_history, so
+-- can't live in init.sql until those FKs are reorganized). The
+-- source_entity_type/source_entity_id columns are added by the
+-- standalone migration add_validation_source_entity.sql, which an
+-- operator must run after the philosophy migration on fresh deploys.

@@ -224,10 +224,17 @@ router.get('/priority-actions', async (req: Request, res: Response) => {
     const { user_id, user_name, limit } = req.query;
     const cap = Math.min(parseInt((limit as string) || '7', 10) || 7, 20);
 
+    // Only treat user_id as a real UUID if it looks like one — callers
+    // sometimes pass the literal string "null"/"undefined" from a missing
+    // localStorage entry. Without this guard, pg would 500 on the cast.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validUserId =
+      typeof user_id === 'string' && UUID_RE.test(user_id) ? user_id : null;
+
     const items: any[] = [];
 
     // 1. Overdue plan items (red) — due in the past, not yet done
-    if (user_id) {
+    if (validUserId) {
       const overduePlans = await pool.query(
         `SELECT pi.id, pi.title, pi.timeframe, pi.target_completion_date, pi.priority, pi.status,
                 sp.id AS plan_id, sp.title AS plan_title
@@ -239,7 +246,7 @@ router.get('/priority-actions', async (req: Request, res: Response) => {
            AND pi.status NOT IN ('completed', 'cancelled')
          ORDER BY pi.target_completion_date ASC
          LIMIT $2`,
-        [user_id, cap]
+        [validUserId, cap]
       );
       for (const row of overduePlans.rows) {
         items.push({
@@ -280,7 +287,7 @@ router.get('/priority-actions', async (req: Request, res: Response) => {
     }
 
     // 3. Recent flagged/rejected validations against the user (last 30 days)
-    if (user_id) {
+    if (validUserId) {
       // ai_recommendation_validations has chat_history_id; chat_history has user_id.
       const validations = await pool.query(
         `SELECT v.id, v.validation_status, v.recommendation_text, v.created_at
@@ -291,7 +298,7 @@ router.get('/priority-actions', async (req: Request, res: Response) => {
            AND v.created_at >= NOW() - INTERVAL '30 days'
          ORDER BY v.created_at DESC
          LIMIT $2`,
-        [user_id, cap]
+        [validUserId, cap]
       );
       for (const row of validations.rows) {
         items.push({
